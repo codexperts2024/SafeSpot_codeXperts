@@ -32,7 +32,7 @@ describe('createSensorStore', () => {
     it('persists the reading to the database', () => {
       store.save(28.0, 'sensor')
 
-      const rows = db.select().from(sensorReadings).all()
+      const rows = db.select().from(sensorReadings).orderBy(sensorReadings.id).all()
       expect(rows).toHaveLength(1)
       expect(rows[0].temperature).toBe(28.0)
       expect(rows[0].source).toBe('sensor')
@@ -42,7 +42,7 @@ describe('createSensorStore', () => {
       store.save(20.0, 'sensor')
       store.save(30.0, 'override')
 
-      const rows = db.select().from(sensorReadings).all()
+      const rows = db.select().from(sensorReadings).orderBy(sensorReadings.id).all()
       expect(rows).toHaveLength(2)
       expect(rows[0].temperature).toBe(20.0)
       expect(rows[1].temperature).toBe(30.0)
@@ -51,7 +51,7 @@ describe('createSensorStore', () => {
     it('saves with override source', () => {
       store.save(42.0, 'override')
 
-      const rows = db.select().from(sensorReadings).all()
+      const rows = db.select().from(sensorReadings).orderBy(sensorReadings.id).all()
       expect(rows[0].source).toBe('override')
     })
   })

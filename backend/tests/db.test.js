@@ -58,7 +58,7 @@ describe('Database initialization', () => {
       const count = instance.seedMockData()
       expect(count).toBe(20)
 
-      const rows = db.select().from(sensorReadings).all()
+      const rows = db.select().from(sensorReadings).orderBy(sensorReadings.id).all()
       expect(rows).toHaveLength(20)
     })
 
@@ -69,7 +69,7 @@ describe('Database initialization', () => {
       const count = instance.seedMockData()
       expect(count).toBe(0)
 
-      const rows = db.select().from(sensorReadings).all()
+      const rows = db.select().from(sensorReadings).orderBy(sensorReadings.id).all()
       expect(rows).toHaveLength(20)
     })
 
@@ -77,7 +77,7 @@ describe('Database initialization', () => {
       instance.initializeDatabase()
       instance.seedMockData()
 
-      const rows = db.select().from(sensorReadings).all()
+      const rows = db.select().from(sensorReadings).orderBy(sensorReadings.id).all()
       for (const row of rows) {
         expect(typeof row.temperature).toBe('number')
         expect(['sensor', 'override']).toContain(row.source)
@@ -89,7 +89,7 @@ describe('Database initialization', () => {
       instance.initializeDatabase()
       instance.seedMockData()
 
-      const rows = db.select().from(sensorReadings).all()
+      const rows = db.select().from(sensorReadings).orderBy(sensorReadings.id).all()
       for (let i = 1; i < rows.length; i++) {
         expect(new Date(rows[i].createdAt).getTime()).toBeGreaterThanOrEqual(
           new Date(rows[i - 1].createdAt).getTime()
