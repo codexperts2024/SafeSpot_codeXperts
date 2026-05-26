@@ -1,0 +1,206 @@
+{
+  "info": {
+    "_postman_id": "safespot-toronto-api",
+    "name": "SafeSpot Toronto API",
+    "description": "Backend API for SafeSpot Toronto — real-time extreme weather safety app. Hono.js + SQLite sensor readings with alert levels.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Health Alias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "API Documentation",
+      "item": [
+        {
+          "name": "OpenAPI Spec",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/openapi.json",
+              "host": ["{{base_url}}"],
+              "path": ["openapi.json"]
+            }
+          },
+          "response": [
+            {
+              "name": "OpenAPI 3.1 Spec",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"openapi\": \"3.1.0\",\n  \"info\": { \"title\": \"SafeSpot API\", \"version\": \"1.0.0\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Scalar Docs (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/docs",
+              "host": ["{{base_url}}"],
+              "path": ["docs"]
+            },
+            "description": "Opens the Scalar interactive API documentation UI. Best viewed in a browser."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sensor",
+      "description": "Endpoints for submitting and retrieving temperature sensor data from the Raspberry Pi.",
+      "item": [
+        {
+          "name": "Get Latest Reading",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/sensor-latest",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sensor-latest"]
+            }
+          },
+          "response": [
+            {
+              "name": "With Data",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"temperature\": 37.5,\n  \"timestamp\": \"2026-05-26T14:30:00.000Z\",\n  \"source\": \"sensor\",\n  \"alert\": {\n    \"level\": \"danger\",\n    \"message\": \"Extreme Heat Warning - Find a Cool Space Now\"\n  }\n}"
+            },
+            {
+              "name": "Empty Database",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"temperature\": null,\n  \"timestamp\": null,\n  \"source\": null,\n  \"alert\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Submit Sensor Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temperature\": 37.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sensor-data",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sensor-data"]
+            },
+            "description": "Receives temperature from the Raspberry Pi sensor. Stores with source: \"sensor\".\n\n**Alert thresholds:**\n- >= 40°C → extreme\n- >= 35°C → danger\n- >= 30°C → caution\n- < 30°C → safe"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\"\n}"
+            },
+            {
+              "name": "Validation Error",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Missing or invalid field: temperature\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Override Temperature",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temperature\": 31.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sensor-override",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sensor-override"]
+            },
+            "description": "Manually override temperature for testing. Stores with source: \"override\"."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"overridden\",\n  \"temperature\": 31.0\n}"
+            },
+            {
+              "name": "Validation Error",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Missing or invalid field: temperature\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
