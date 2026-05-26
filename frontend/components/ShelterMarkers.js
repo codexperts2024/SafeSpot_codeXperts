@@ -59,24 +59,37 @@ export default function ShelterMarkers({ userLocation, onSheltersLoaded }) {
       setCoolingFeatures(cooling);
       setLibraryFeatures(libraries);
 
+      // Cooling data uses MultiPoint geometry: coordinates = [[lng, lat], ...]
+      // so coordinates[0][0] = lng, coordinates[0][1] = lat
+      const getCoords = (f) => {
+        const c = f.geometry?.coordinates;
+        if (!c) return null;
+        // MultiPoint: [[lng, lat], ...]
+        if (Array.isArray(c[0])) return { lng: c[0][0], lat: c[0][1] };
+        // Point: [lng, lat]
+        return { lng: c[0], lat: c[1] };
+      };
+
       const coolingList = cooling
-        .filter((f) => f.geometry?.coordinates?.length >= 2)
-        .map((f) => ({
+        .map((f) => ({ f, coords: getCoords(f) }))
+        .filter(({ coords }) => coords !== null)
+        .map(({ f, coords }) => ({
           type: "cooling",
-          name: f.properties.NAME || "Cooling Centre",
-          address: f.properties.ADDRESS || "",
-          lat: f.geometry.coordinates[1],
-          lng: f.geometry.coordinates[0],
+          name: f.properties.locationName || f.properties.NAME || "Cooling Centre",
+          address: f.properties.address || f.properties.ADDRESS || "",
+          lat: coords.lat,
+          lng: coords.lng,
         }));
 
       const libraryList = libraries
-        .filter((f) => f.geometry?.coordinates?.length >= 2)
-        .map((f) => ({
+        .map((f) => ({ f, coords: getCoords(f) }))
+        .filter(({ coords }) => coords !== null)
+        .map(({ f, coords }) => ({
           type: "library",
           name: f.properties.BranchName || "Library Branch",
-          address: f.properties.Address || "",
-          lat: f.geometry.coordinates[1],
-          lng: f.geometry.coordinates[0],
+          address: f.properties.Address || f.properties.address || "",
+          lat: coords.lat,
+          lng: coords.lng,
         }));
 
       onSheltersLoadedRef.current?.([...coolingList, ...libraryList]);
@@ -113,37 +126,39 @@ export default function ShelterMarkers({ userLocation, onSheltersLoaded }) {
 
       {/* Cooling centres — ❄️ */}
       {coolingFeatures
-        .filter((f) => f.geometry?.coordinates?.length >= 2)
-        .map((f, i) => (
-          <Marker
-            key={`cc-${i}`}
-            position={[f.geometry.coordinates[1], f.geometry.coordinates[0]]}
-            icon={coolingIcon}
-          >
-            <Popup>
-              <strong>{f.properties.NAME || "Cooling Centre"}</strong>
-              <br />
-              {f.properties.ADDRESS || ""}
-            </Popup>
-          </Marker>
-        ))}
+        .filter((f) => f.geometry?.coordinates?.length > 0)
+        .map((f, i) => {
+          const c = Array.isArray(f.geometry.coordinates[0])
+            ? f.geometry.coordinates[0]
+            : f.geometry.coordinates;
+          return (
+            <Marker key={`cc-${i}`} position={[c[1], c[0]]} icon={coolingIcon}>
+              <Popup>
+                <strong>{f.properties.locationName || f.properties.NAME || "Cooling Centre"}</strong>
+                <br />
+                {f.properties.address || f.properties.ADDRESS || ""}
+              </Popup>
+            </Marker>
+          );
+        })}
 
       {/* Libraries — 📚 */}
       {libraryFeatures
-        .filter((f) => f.geometry?.coordinates?.length >= 2)
-        .map((f, i) => (
-          <Marker
-            key={`lib-${i}`}
-            position={[f.geometry.coordinates[1], f.geometry.coordinates[0]]}
-            icon={libraryIcon}
-          >
-            <Popup>
-              <strong>{f.properties.BranchName || "Library Branch"}</strong>
-              <br />
-              {f.properties.Address || ""}
-            </Popup>
-          </Marker>
-        ))}
+        .filter((f) => f.geometry?.coordinates?.length > 0)
+        .map((f, i) => {
+          const c = Array.isArray(f.geometry.coordinates[0])
+            ? f.geometry.coordinates[0]
+            : f.geometry.coordinates;
+          return (
+            <Marker key={`lib-${i}`} position={[c[1], c[0]]} icon={libraryIcon}>
+              <Popup>
+                <strong>{f.properties.BranchName || "Library Branch"}</strong>
+                <br />
+                {f.properties.Address || ""}
+              </Popup>
+            </Marker>
+          );
+        })}
     </MapContainer>
   );
 }
