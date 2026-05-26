@@ -1,6 +1,7 @@
 import { swaggerUI } from '@hono/swagger-ui'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { cors } from 'hono/cors'
+import { logger } from 'hono/logger'
 import { registerSensorRoutes } from './routes/sensor.js'
 import { createSensorStore } from './sensor-store.js'
 
@@ -17,6 +18,7 @@ export const createApp = ({ sensorStore, db: database } = {}) => {
   })
 
   app.use('*', cors())
+  app.use('*', logger())
 
   const healthHandler = (c) => c.json({ status: 'ok' })
   app.get('/', healthHandler)
