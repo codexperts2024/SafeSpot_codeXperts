@@ -2,21 +2,6 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sensorReadings } from './schema.js'
 
-const sqlite = new Database('safespot.db')
-
-export const db = drizzle(sqlite)
-
-export const initializeDatabase = () => {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS sensor_readings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      temperature REAL NOT NULL,
-      source TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  `)
-}
-
 const MOCK_READINGS = [
   // safe (<30°C)
   { temperature: 21.3, source: 'sensor' },
@@ -45,22 +30,45 @@ const MOCK_READINGS = [
   { temperature: 29.8, source: 'override' }
 ]
 
-export const seedMockData = () => {
-  const rowCount = sqlite
-    .prepare('SELECT COUNT(*) AS count FROM sensor_readings')
-    .get().count
+export const createDatabase = ({ filename = 'safespot.db' } = {}) => {
+  const sqlite = new Database(filename)
+  const db = drizzle(sqlite)
 
-  if (rowCount > 0) return
+  const initializeDatabase = () => {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS sensor_readings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        temperature REAL NOT NULL,
+        source TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `)
+  }
 
-  const now = Date.now()
-  const readings = MOCK_READINGS.map((entry, i) => ({
-    ...entry,
-    createdAt: new Date(
-      now - (MOCK_READINGS.length - 1 - i) * 45 * 60 * 1000
-    ).toISOString()
-  }))
+  const seedMockData = () => {
+    const rowCount = sqlite
+      .prepare('SELECT COUNT(*) AS count FROM sensor_readings')
+      .get().count
 
-  db.insert(sensorReadings).values(readings).run()
+    if (rowCount > 0) return 0
 
-  console.log(`Seeded ${readings.length} mock sensor readings`)
+    const now = Date.now()
+    const readings = MOCK_READINGS.map((entry, i) => ({
+      ...entry,
+      createdAt: new Date(
+        now - (MOCK_READINGS.length - 1 - i) * 45 * 60 * 1000
+      ).toISOString()
+    }))
+
+    db.insert(sensorReadings).values(readings).run()
+
+    console.log(`Seeded ${readings.length} mock sensor readings`)
+    return readings.length
+  }
+
+  return { db, sqlite, initializeDatabase, seedMockData }
 }
+
+const { db, initializeDatabase, seedMockData } = createDatabase()
+
+export { db, initializeDatabase, seedMockData }

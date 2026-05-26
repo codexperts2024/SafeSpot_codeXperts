@@ -1,22 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
-
-const createMockStore = () => {
-  const savedReadings = []
-
-  return {
-    save: (temperature, source) => {
-      const reading = {
-        temperature,
-        timestamp: new Date().toISOString(),
-        source
-      }
-      savedReadings.push(reading)
-      return reading
-    },
-    getLatest: () => savedReadings[savedReadings.length - 1] ?? null
-  }
-}
+import { createMockStore } from '../helpers/mock-sensor-store.js'
 
 describe('Sensor Routes', () => {
   describe('POST /api/sensor-data', () => {

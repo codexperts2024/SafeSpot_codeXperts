@@ -17,8 +17,9 @@ export const createApp = ({ sensorStore = createSensorStore() } = {}) => {
 
   app.use('*', cors())
 
-  app.get('/', (c) => c.json({ status: 'ok' }))
-  app.get('/health', (c) => c.json({ status: 'ok' }))
+  const healthHandler = (c) => c.json({ status: 'ok' })
+  app.get('/', healthHandler)
+  app.get('/health', healthHandler)
 
   registerSensorRoutes(app, sensorStore)
 

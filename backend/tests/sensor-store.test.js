@@ -1,21 +1,7 @@
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { sensorReadings } from '../src/schema.js'
 import { createSensorStore } from '../src/sensor-store.js'
-
-const createTestDatabase = () => {
-  const sqlite = new Database(':memory:')
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS sensor_readings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      temperature REAL NOT NULL,
-      source TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  `)
-  return drizzle(sqlite)
-}
+import { createTestDatabase } from './helpers/test-database.js'
 
 describe('createSensorStore', () => {
   let db

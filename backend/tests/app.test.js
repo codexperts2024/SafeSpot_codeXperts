@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../src/app.js'
-
-const createMockStore = () => ({
-  save: () => ({
-    temperature: 0,
-    timestamp: new Date().toISOString(),
-    source: 'sensor'
-  }),
-  getLatest: () => null
-})
+import { createMockStore } from './helpers/mock-sensor-store.js'
 
 describe('createApp', () => {
   it('creates an app without errors', () => {
@@ -18,9 +10,6 @@ describe('createApp', () => {
   })
 
   it('creates an app with default sensorStore', () => {
-    // This will use the real createSensorStore which imports the real db.
-    // We just verify it doesn't throw during construction.
-    // Note: this relies on the real database being accessible.
     const app = createApp()
     expect(app).toBeDefined()
   })

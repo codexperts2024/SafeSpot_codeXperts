@@ -1,83 +1,46 @@
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { createDatabase } from '../src/db.js'
 import { sensorReadings } from '../src/schema.js'
-
-// We recreate the db module functions inline to test them in isolation
-// since the real db.js imports create a file-based database.
-
-const createTestSqlite = () => new Database(':memory:')
-
-const initializeDatabase = (sqlite) => {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS sensor_readings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      temperature REAL NOT NULL,
-      source TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  `)
-}
-
-const seedMockData = (database, sqlite) => {
-  const rowCount = sqlite
-    .prepare('SELECT COUNT(*) AS count FROM sensor_readings')
-    .get().count
-  if (rowCount > 0) return 0
-
-  const mockReadings = [
-    { temperature: 21.3, source: 'sensor' },
-    { temperature: 23.7, source: 'sensor' },
-    { temperature: 40.5, source: 'sensor' }
-  ]
-
-  const now = Date.now()
-  const readings = mockReadings.map((entry, i) => ({
-    ...entry,
-    createdAt: new Date(
-      now - (mockReadings.length - 1 - i) * 45 * 60 * 1000
-    ).toISOString()
-  }))
-
-  database.insert(sensorReadings).values(readings).run()
-  return readings.length
-}
 
 describe('Database initialization', () => {
   let sqlite
   let db
+  let instance
 
   beforeEach(() => {
-    sqlite = createTestSqlite()
-    db = drizzle(sqlite)
+    instance = createDatabase({ filename: ':memory:' })
+    sqlite = instance.sqlite
+    db = instance.db
   })
 
   describe('initializeDatabase', () => {
     it('creates the sensor_readings table', () => {
-      initializeDatabase(sqlite)
+      instance.initializeDatabase()
 
       const tables = sqlite
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='sensor_readings'"
+          'SELECT name FROM sqlite_master' +
+            " WHERE type='table' AND name='sensor_readings'"
         )
         .all()
       expect(tables).toHaveLength(1)
     })
 
     it('does not fail when called twice (idempotent)', () => {
-      initializeDatabase(sqlite)
-      initializeDatabase(sqlite)
+      instance.initializeDatabase()
+      instance.initializeDatabase()
 
       const tables = sqlite
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='sensor_readings'"
+          'SELECT name FROM sqlite_master' +
+            " WHERE type='table' AND name='sensor_readings'"
         )
         .all()
       expect(tables).toHaveLength(1)
     })
 
     it('creates table with correct columns', () => {
-      initializeDatabase(sqlite)
+      instance.initializeDatabase()
 
       const info = sqlite.pragma('table_info(sensor_readings)')
       const columns = info.map((col) => col.name)
@@ -90,29 +53,29 @@ describe('Database initialization', () => {
 
   describe('seedMockData', () => {
     it('seeds data into an empty table', () => {
-      initializeDatabase(sqlite)
+      instance.initializeDatabase()
 
-      const count = seedMockData(db, sqlite)
-      expect(count).toBe(3)
+      const count = instance.seedMockData()
+      expect(count).toBe(20)
 
       const rows = db.select().from(sensorReadings).all()
-      expect(rows).toHaveLength(3)
+      expect(rows).toHaveLength(20)
     })
 
     it('does not seed when table already has data', () => {
-      initializeDatabase(sqlite)
-      seedMockData(db, sqlite)
+      instance.initializeDatabase()
+      instance.seedMockData()
 
-      const count = seedMockData(db, sqlite)
+      const count = instance.seedMockData()
       expect(count).toBe(0)
 
       const rows = db.select().from(sensorReadings).all()
-      expect(rows).toHaveLength(3)
+      expect(rows).toHaveLength(20)
     })
 
     it('seeds readings with correct fields', () => {
-      initializeDatabase(sqlite)
-      seedMockData(db, sqlite)
+      instance.initializeDatabase()
+      instance.seedMockData()
 
       const rows = db.select().from(sensorReadings).all()
       for (const row of rows) {
@@ -123,8 +86,8 @@ describe('Database initialization', () => {
     })
 
     it('seeds readings with timestamps in chronological order', () => {
-      initializeDatabase(sqlite)
-      seedMockData(db, sqlite)
+      instance.initializeDatabase()
+      instance.seedMockData()
 
       const rows = db.select().from(sensorReadings).all()
       for (let i = 1; i < rows.length; i++) {
