@@ -270,7 +270,7 @@ export default function NearestShelter() {
         ) : (
           <>
             {nearestCooling && (
-              <div className="bg-zinc-900 border border-blue-700 rounded-xl p-5">
+              <div className="bg-zinc-900 border border-blue-700 rounded-xl p-5 flex flex-col">
                 <p className="text-xs text-blue-400 font-semibold uppercase tracking-wide mb-2">
                   ❄️ Nearest Cooling Centre
                 </p>
@@ -279,10 +279,18 @@ export default function NearestShelter() {
                 <p className="text-blue-400 text-xl font-bold mt-3">
                   {nearestCooling.distance.toFixed(2)} km away
                 </p>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${nearestCooling.lat},${nearestCooling.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 w-full text-center bg-blue-700 hover:bg-blue-600 text-white text-sm font-semibold py-2 rounded-xl transition-colors duration-150"
+                >
+                  🗺️ Get Directions
+                </a>
               </div>
             )}
             {nearestLibrary && (
-              <div className="bg-zinc-900 border border-green-700 rounded-xl p-5">
+              <div className="bg-zinc-900 border border-green-700 rounded-xl p-5 flex flex-col">
                 <p className="text-xs text-green-400 font-semibold uppercase tracking-wide mb-2">
                   📚 Nearest Library
                 </p>
@@ -291,6 +299,14 @@ export default function NearestShelter() {
                 <p className="text-green-400 text-xl font-bold mt-3">
                   {nearestLibrary.distance.toFixed(2)} km away
                 </p>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${nearestLibrary.lat},${nearestLibrary.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 w-full text-center bg-green-700 hover:bg-green-600 text-white text-sm font-semibold py-2 rounded-xl transition-colors duration-150"
+                >
+                  🗺️ Get Directions
+                </a>
               </div>
             )}
           </>
