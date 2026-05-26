@@ -116,7 +116,14 @@ export default function ShelterMarkers({ userLocation, onSheltersLoaded }) {
         zoomOffset={-1}
       />
 
-      {/* Heat Island layer — red, opacity by temperature */}
+      {/* Ontario-wide temperature heatmap — OpenWeatherMap tile layer */}
+      <TileLayer
+        url={`https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${process.env.NEXT_PUBLIC_OPENWEATHER_KEY}`}
+        opacity={0.35}
+        zIndex={2}
+      />
+
+      {/* Toronto heat island layer — red, opacity by temperature (overlays OWM at zoom ≥ 10) */}
       {heatData && (
         <GeoJSON key="heat" data={heatData} style={heatStyle} />
       )}
