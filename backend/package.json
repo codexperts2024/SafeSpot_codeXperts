@@ -11,9 +11,13 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@hono/swagger-ui": "^0.6.1",
+    "@hono/zod-openapi": "^1.4.0",
+    "@scalar/hono-api-reference": "^0.10.19",
     "better-sqlite3": "^11.10.0",
     "drizzle-orm": "^0.44.7",
-    "hono": "^4.6.10"
+    "hono": "^4.6.10",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.7"
