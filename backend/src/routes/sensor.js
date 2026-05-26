@@ -1,28 +1,28 @@
-import { createRoute } from '@hono/zod-openapi';
-import { z } from 'zod';
-import { getAlertLevel } from '../alerts.js';
+import { createRoute } from '@hono/zod-openapi'
+import { z } from 'zod'
+import { getAlertLevel } from '../alerts.js'
 import {
-  SensorReadingSchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  TemperatureBodySchema,
-  StatusOkSchema,
   OverrideResponseSchema,
-} from '../schemas/sensor.js';
+  SensorReadingSchema,
+  StatusOkSchema,
+  TemperatureBodySchema
+} from '../schemas/sensor.js'
 
 const createReadingPayload = (reading) => ({
   temperature: reading.temperature,
   timestamp: reading.timestamp,
   source: reading.source,
-  alert: getAlertLevel(reading.temperature),
-});
+  alert: getAlertLevel(reading.temperature)
+})
 
 const createEmptyReadingPayload = () => ({
   temperature: null,
   timestamp: null,
   source: null,
-  alert: null,
-});
+  alert: null
+})
 
 const sensorDataRoute = createRoute({
   method: 'post',
@@ -37,25 +37,25 @@ const sensorDataRoute = createRoute({
   request: {
     body: {
       content: {
-        'application/json': { schema: TemperatureBodySchema },
-      },
-    },
+        'application/json': { schema: TemperatureBodySchema }
+      }
+    }
   },
   responses: {
     200: {
       description: 'Reading received and stored successfully',
       content: {
-        'application/json': { schema: StatusOkSchema },
-      },
+        'application/json': { schema: StatusOkSchema }
+      }
     },
     400: {
       description: 'Missing or invalid temperature value',
       content: {
-        'application/json': { schema: ErrorResponseSchema },
-      },
-    },
-  },
-});
+        'application/json': { schema: ErrorResponseSchema }
+      }
+    }
+  }
+})
 
 const sensorLatestRoute = createRoute({
   method: 'get',
@@ -71,12 +71,12 @@ const sensorLatestRoute = createRoute({
       description: 'Latest reading retrieved successfully',
       content: {
         'application/json': {
-          schema: z.union([SensorReadingSchema, EmptySensorReadingSchema]),
-        },
-      },
-    },
-  },
-});
+          schema: z.union([SensorReadingSchema, EmptySensorReadingSchema])
+        }
+      }
+    }
+  }
+})
 
 const sensorOverrideRoute = createRoute({
   method: 'post',
@@ -91,46 +91,46 @@ const sensorOverrideRoute = createRoute({
   request: {
     body: {
       content: {
-        'application/json': { schema: TemperatureBodySchema },
-      },
-    },
+        'application/json': { schema: TemperatureBodySchema }
+      }
+    }
   },
   responses: {
     200: {
       description: 'Override applied successfully',
       content: {
-        'application/json': { schema: OverrideResponseSchema },
-      },
+        'application/json': { schema: OverrideResponseSchema }
+      }
     },
     400: {
       description: 'Missing or invalid temperature value',
       content: {
-        'application/json': { schema: ErrorResponseSchema },
-      },
-    },
-  },
-});
+        'application/json': { schema: ErrorResponseSchema }
+      }
+    }
+  }
+})
 
 export const registerSensorRoutes = (app, sensorStore) => {
   app.openapi(sensorDataRoute, async (c) => {
-    const { temperature } = c.req.valid('json');
-    sensorStore.save(temperature, 'sensor');
-    return c.json({ status: 'ok' }, 200);
-  });
+    const { temperature } = c.req.valid('json')
+    sensorStore.save(temperature, 'sensor')
+    return c.json({ status: 'ok' }, 200)
+  })
 
   app.openapi(sensorLatestRoute, (c) => {
-    const latestReading = sensorStore.getLatest();
+    const latestReading = sensorStore.getLatest()
 
     if (!latestReading) {
-      return c.json(createEmptyReadingPayload(), 200);
+      return c.json(createEmptyReadingPayload(), 200)
     }
 
-    return c.json(createReadingPayload(latestReading), 200);
-  });
+    return c.json(createReadingPayload(latestReading), 200)
+  })
 
   app.openapi(sensorOverrideRoute, async (c) => {
-    const { temperature } = c.req.valid('json');
-    sensorStore.save(temperature, 'override');
-    return c.json({ status: 'overridden', temperature }, 200);
-  });
-};
+    const { temperature } = c.req.valid('json')
+    sensorStore.save(temperature, 'override')
+    return c.json({ status: 'overridden', temperature }, 200)
+  })
+}

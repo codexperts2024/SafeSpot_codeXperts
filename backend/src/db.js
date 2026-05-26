@@ -1,10 +1,10 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { sensorReadings } from './schema.js';
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { sensorReadings } from './schema.js'
 
-const sqlite = new Database('safespot.db');
+const sqlite = new Database('safespot.db')
 
-export const db = drizzle(sqlite);
+export const db = drizzle(sqlite)
 
 export const initializeDatabase = () => {
   sqlite.exec(`
@@ -14,8 +14,8 @@ export const initializeDatabase = () => {
       source TEXT NOT NULL,
       created_at TEXT NOT NULL
     )
-  `);
-};
+  `)
+}
 
 const MOCK_READINGS = [
   // safe (<30°C)
@@ -42,21 +42,25 @@ const MOCK_READINGS = [
   { temperature: 43.1, source: 'sensor' },
   // latest — back to caution, simulating a cooling trend
   { temperature: 32.4, source: 'sensor' },
-  { temperature: 29.8, source: 'override' },
-];
+  { temperature: 29.8, source: 'override' }
+]
 
 export const seedMockData = () => {
-  const rowCount = sqlite.prepare('SELECT COUNT(*) AS count FROM sensor_readings').get().count;
+  const rowCount = sqlite
+    .prepare('SELECT COUNT(*) AS count FROM sensor_readings')
+    .get().count
 
-  if (rowCount > 0) return;
+  if (rowCount > 0) return
 
-  const now = Date.now();
+  const now = Date.now()
   const readings = MOCK_READINGS.map((entry, i) => ({
     ...entry,
-    createdAt: new Date(now - (MOCK_READINGS.length - 1 - i) * 45 * 60 * 1000).toISOString(),
-  }));
+    createdAt: new Date(
+      now - (MOCK_READINGS.length - 1 - i) * 45 * 60 * 1000
+    ).toISOString()
+  }))
 
-  db.insert(sensorReadings).values(readings).run();
+  db.insert(sensorReadings).values(readings).run()
 
-  console.log(`Seeded ${readings.length} mock sensor readings`);
-};
+  console.log(`Seeded ${readings.length} mock sensor readings`)
+}

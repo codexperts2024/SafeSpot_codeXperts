@@ -1,28 +1,29 @@
 {
-  "name": "safespot-backend",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
-  },
-  "dependencies": {
-    "@hono/node-server": "^1.13.7",
-    "@hono/swagger-ui": "^0.6.1",
-    "@hono/zod-openapi": "^1.4.0",
-    "@scalar/hono-api-reference": "^0.10.19",
-    "better-sqlite3": "^11.10.0",
-    "drizzle-orm": "^0.44.7",
-    "hono": "^4.6.10",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "drizzle-kit": "^0.31.7",
-    "vitest": "^4.1.7"
-  }
+	"name": "safespot-backend",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "node --watch src/index.js",
+		"start": "node src/index.js",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "biome lint ./src ./tests",
+		"format": "biome format --write ./src ./tests",
+		"check": "biome check --write ./src ./tests"
+	},
+	"dependencies": {
+		"@hono/node-server": "^1.13.7",
+		"@hono/swagger-ui": "^0.6.1",
+		"@hono/zod-openapi": "^1.4.0",
+		"@scalar/hono-api-reference": "^0.10.19",
+		"better-sqlite3": "^11.10.0",
+		"drizzle-orm": "^0.45.2",
+		"hono": "^4.6.10",
+		"zod": "^4.4.3"
+	},
+	"devDependencies": {
+		"drizzle-kit": "^0.18.1",
+		"vitest": "^4.1.7"
+	}
 }

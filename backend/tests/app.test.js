@@ -1,105 +1,109 @@
-import { describe, it, expect } from 'vitest';
-import { createApp } from '../src/app.js';
+import { describe, expect, it } from 'vitest'
+import { createApp } from '../src/app.js'
 
 const createMockStore = () => ({
-  save: () => ({ temperature: 0, timestamp: new Date().toISOString(), source: 'sensor' }),
-  getLatest: () => null,
-});
+  save: () => ({
+    temperature: 0,
+    timestamp: new Date().toISOString(),
+    source: 'sensor'
+  }),
+  getLatest: () => null
+})
 
 describe('createApp', () => {
   it('creates an app without errors', () => {
-    const app = createApp({ sensorStore: createMockStore() });
-    expect(app).toBeDefined();
-    expect(typeof app.request).toBe('function');
-  });
+    const app = createApp({ sensorStore: createMockStore() })
+    expect(app).toBeDefined()
+    expect(typeof app.request).toBe('function')
+  })
 
   it('creates an app with default sensorStore', () => {
     // This will use the real createSensorStore which imports the real db.
     // We just verify it doesn't throw during construction.
     // Note: this relies on the real database being accessible.
-    const app = createApp();
-    expect(app).toBeDefined();
-  });
+    const app = createApp()
+    expect(app).toBeDefined()
+  })
 
   describe('GET /', () => {
     it('returns status ok', async () => {
-      const app = createApp({ sensorStore: createMockStore() });
+      const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/');
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toEqual({ status: 'ok' });
-    });
-  });
+      const res = await app.request('/')
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toEqual({ status: 'ok' })
+    })
+  })
 
   describe('GET /health', () => {
     it('returns status ok', async () => {
-      const app = createApp({ sensorStore: createMockStore() });
+      const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/health');
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toEqual({ status: 'ok' });
-    });
-  });
+      const res = await app.request('/health')
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toEqual({ status: 'ok' })
+    })
+  })
 
   describe('GET /openapi.json', () => {
     it('returns a valid OpenAPI spec', async () => {
-      const app = createApp({ sensorStore: createMockStore() });
+      const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/openapi.json');
-      expect(res.status).toBe(200);
-      const spec = await res.json();
-      expect(spec.openapi).toBe('3.1.0');
-      expect(spec.info.title).toContain('SafeSpot');
-      expect(spec.paths).toBeDefined();
-    });
-  });
+      const res = await app.request('/openapi.json')
+      expect(res.status).toBe(200)
+      const spec = await res.json()
+      expect(spec.openapi).toBe('3.1.0')
+      expect(spec.info.title).toContain('SafeSpot')
+      expect(spec.paths).toBeDefined()
+    })
+  })
 
   describe('GET /docs', () => {
     it('returns the Scalar docs UI page', async () => {
-      const app = createApp({ sensorStore: createMockStore() });
+      const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/docs');
-      expect(res.status).toBe(200);
-      const text = await res.text();
-      expect(text).toContain('scalar');
-    });
-  });
+      const res = await app.request('/docs')
+      expect(res.status).toBe(200)
+      const text = await res.text()
+      expect(text).toContain('scalar')
+    })
+  })
 
   describe('CORS', () => {
     it('includes CORS headers in responses', async () => {
-      const app = createApp({ sensorStore: createMockStore() });
+      const app = createApp({ sensorStore: createMockStore() })
 
       const res = await app.request('/', {
-        headers: { Origin: 'http://localhost:3000' },
-      });
-      expect(res.headers.get('access-control-allow-origin')).toBe('*');
-    });
-  });
+        headers: { Origin: 'http://localhost:3000' }
+      })
+      expect(res.headers.get('access-control-allow-origin')).toBe('*')
+    })
+  })
 
   describe('validation error handling', () => {
     it('returns 400 with field name for invalid JSON body', async () => {
-      const app = createApp({ sensorStore: createMockStore() });
+      const app = createApp({ sensorStore: createMockStore() })
 
       const res = await app.request('/api/sensor-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ unknownField: 42 }),
-      });
+        body: JSON.stringify({ unknownField: 42 })
+      })
 
-      expect(res.status).toBe(400);
-      const body = await res.json();
-      expect(body.error).toContain('temperature');
-    });
-  });
+      expect(res.status).toBe(400)
+      const body = await res.json()
+      expect(body.error).toContain('temperature')
+    })
+  })
 
   describe('404 for unknown routes', () => {
     it('returns 404 for non-existent endpoint', async () => {
-      const app = createApp({ sensorStore: createMockStore() });
+      const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/api/nonexistent');
-      expect(res.status).toBe(404);
-    });
-  });
-});
+      const res = await app.request('/api/nonexistent')
+      expect(res.status).toBe(404)
+    })
+  })
+})

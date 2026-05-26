@@ -1,26 +1,26 @@
-import { OpenAPIHono } from '@hono/zod-openapi';
-import { cors } from 'hono/cors';
-import { Scalar } from '@scalar/hono-api-reference';
-import { createSensorStore } from './sensor-store.js';
-import { registerSensorRoutes } from './routes/sensor.js';
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { Scalar } from '@scalar/hono-api-reference'
+import { cors } from 'hono/cors'
+import { registerSensorRoutes } from './routes/sensor.js'
+import { createSensorStore } from './sensor-store.js'
 
 export const createApp = ({ sensorStore = createSensorStore() } = {}) => {
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
       if (!result.success) {
-        const firstIssue = result.error.issues[0];
-        const field = firstIssue?.path?.[0] ?? 'unknown';
-        return c.json({ error: `Missing or invalid field: ${field}` }, 400);
+        const firstIssue = result.error.issues[0]
+        const field = firstIssue?.path?.[0] ?? 'unknown'
+        return c.json({ error: `Missing or invalid field: ${field}` }, 400)
       }
-    },
-  });
+    }
+  })
 
-  app.use('*', cors());
+  app.use('*', cors())
 
-  app.get('/', (c) => c.json({ status: 'ok' }));
-  app.get('/health', (c) => c.json({ status: 'ok' }));
+  app.get('/', (c) => c.json({ status: 'ok' }))
+  app.get('/health', (c) => c.json({ status: 'ok' }))
 
-  registerSensorRoutes(app, sensorStore);
+  registerSensorRoutes(app, sensorStore)
 
   app.doc31('/openapi.json', {
     openapi: '3.1.0',
@@ -34,21 +34,23 @@ export const createApp = ({ sensorStore = createSensorStore() } = {}) => {
         'manual override for testing.',
       contact: {
         name: 'Team codeXperts',
-        url: 'https://github.com/codexperts2024/SafeSpot_codeXperts',
+        url: 'https://github.com/codexperts2024/SafeSpot_codeXperts'
       },
-      license: { name: 'MIT' },
+      license: { name: 'MIT' }
     },
-    servers: [{ url: 'http://localhost:8000', description: 'Local development server' }],
-    tags: [{ name: 'Sensor Data', description: 'Temperature sensor endpoints' }],
-  });
+    servers: [
+      { url: 'http://localhost:8000', description: 'Local development server' }
+    ],
+    tags: [{ name: 'Sensor Data', description: 'Temperature sensor endpoints' }]
+  })
 
   app.get(
     '/docs',
     Scalar({
       url: '/openapi.json',
-      pageTitle: 'SafeSpot Toronto — Sensor API Docs',
-    }),
-  );
+      pageTitle: 'SafeSpot Toronto — Sensor API Docs'
+    })
+  )
 
-  return app;
-};
+  return app
+}

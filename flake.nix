@@ -19,6 +19,7 @@
             pkgs.nodejs_22
             pkgs.python3
             pkgs.gnumake
+            pkgs.biome
           ];
           buildInputs = [
             pkgs.sqlite
