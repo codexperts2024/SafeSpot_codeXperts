@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import NearestShelter from "@/components/NearestShelter";
 
 export default function Home() {
   return (
@@ -31,7 +32,6 @@ export default function Home() {
           <p className="text-sm uppercase tracking-widest text-orange-400 mb-4">How It Works</p>
           <h2 className="text-4xl font-bold mb-16">System Flow</h2>
 
-          {/* Placeholder — replace with scroll-animated diagram */}
           <div className="flex flex-col items-center gap-0 w-full max-w-sm">
             {[
               { icon: "🌡️", label: "Temperature Detected", sub: "Raspberry Pi Temperature Sensor" },
@@ -57,13 +57,12 @@ export default function Home() {
           <h2 className="text-4xl font-bold mb-4">Map Data Layers</h2>
           <p className="text-gray-400 mb-16">Four layers stack together to build Toronto's heat risk map</p>
 
-          {/* Placeholder — replace with scroll-driven layer stack animation */}
           <div className="flex flex-col gap-4 w-full max-w-lg">
             {[
-              { num: "01", label: "Toronto Base Map",               desc: "Base map of Toronto (Leaflet + OpenStreetMap)",          color: "border-blue-800" },
-              { num: "02", label: "Urban Heat Island Effect",       desc: "Heat island zones — ArcGIS REST API (Seneca)",           color: "border-orange-800" },
-              { num: "03", label: "Air Conditioned & Cool Spaces",  desc: "Cooling space locations — City of Toronto Open Data",    color: "border-cyan-800" },
-              { num: "04", label: "Library Branch Locations",       desc: "Library branches — City of Toronto Open Data",           color: "border-green-800" },
+              { num: "01", label: "Toronto Base Map",              desc: "Base map of Toronto (Leaflet + OpenStreetMap)",       color: "border-blue-800" },
+              { num: "02", label: "Urban Heat Island Effect",      desc: "Heat island zones — ArcGIS REST API (Seneca)",        color: "border-orange-800" },
+              { num: "03", label: "Air Conditioned & Cool Spaces", desc: "Cooling space locations — City of Toronto Open Data", color: "border-cyan-800" },
+              { num: "04", label: "Library Branch Locations",      desc: "Library branches — City of Toronto Open Data",        color: "border-green-800" },
             ].map((layer) => (
               <div key={layer.num} className={`border ${layer.color} rounded-xl px-6 py-4 bg-zinc-900 flex items-center gap-4`}>
                 <span className="text-2xl font-bold text-gray-600 w-10">{layer.num}</span>
@@ -87,7 +86,7 @@ export default function Home() {
           <p className="text-gray-400 mb-16">Raspberry Pi sensor + GPS combined into a live safety map</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl mb-10">
-            {/* Temperature card */}
+            {/* Temperature card — Marcos / Gary */}
             <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6">
               <p className="text-sm text-gray-500 mb-2">🌡️ Live Temperature</p>
               <div className="text-5xl font-bold text-orange-400">-- °C</div>
@@ -97,21 +96,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* GPS card */}
-            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6">
-              <p className="text-sm text-gray-500 mb-2">📍 Your Location</p>
-              <div className="text-2xl font-bold text-cyan-400">-- , --</div>
-              <p className="text-xs text-gray-500 mt-1">Lat / Lng</p>
-              <p className="text-xs text-gray-600 mt-3">Real-time location detected via browser GPS</p>
-              <div className="mt-4 text-gray-700 text-sm">[ GPS permission button goes here ]</div>
-            </div>
-          </div>
-
-          {/* Combined live map */}
-          <div className="w-full max-w-3xl h-80 bg-zinc-900 border border-zinc-700 rounded-2xl flex flex-col items-center justify-center gap-2 text-gray-600">
-            <span className="text-3xl">🗺️</span>
-            <span>[ Live map — cooling centres + libraries + your location ]</span>
-            <span className="text-sm text-gray-700">Alert banner appears when temperature exceeds 35°C</span>
+            {/* GPS card + map + nearest result — Arun */}
+            <NearestShelter />
           </div>
         </section>
       </main>
