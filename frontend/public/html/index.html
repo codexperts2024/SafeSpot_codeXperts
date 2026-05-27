@@ -1,6 +1,6 @@
 
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="dark scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,6 +20,40 @@
     ::selection { background-color: #262626; color: #fff; }
     .leaflet-popup-content-wrapper { background: #161616; color: #f2f2f2; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     .leaflet-popup-tip { background: #161616; }
+    .leaflet-tooltip { background: #161616; color: #f2f2f2; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-family: 'Inter', sans-serif; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .leaflet-tooltip-top:before { border-top-color: #161616; }
+    .leaflet-tooltip-bottom:before { border-bottom-color: #161616; }
+
+    @keyframes hero-gradient-flow {
+      0% { background-position: 0% 0%, 100% 0%, 0% 50%; }
+      50% { background-position: 100% 100%, 0% 100%, 100% 50%; }
+      100% { background-position: 0% 0%, 100% 0%, 0% 50%; }
+    }
+    @keyframes hero-glow-drift {
+      0% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+      33% { transform: translate(-30px, 40px) scale(1.1); opacity: 1; }
+      66% { transform: translate(20px, -20px) scale(0.95); opacity: 0.7; }
+      100% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+    }
+    @keyframes hero-glow-drift-reverse {
+      0% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+      33% { transform: translate(30px, -40px) scale(1.1); opacity: 1; }
+      66% { transform: translate(-20px, 20px) scale(0.95); opacity: 0.7; }
+      100% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+    }
+    @keyframes travel-dot {
+      0% { left: 0; opacity: 0; transform: translateY(-50%) scale(0.5); }
+      2% { opacity: 1; transform: translateY(-50%) scale(1); }
+      23% { opacity: 1; transform: translateY(-50%) scale(1); }
+      25% { left: 100%; opacity: 0; transform: translateY(-50%) scale(0.5); }
+      100% { left: 100%; opacity: 0; transform: translateY(-50%) scale(0.5); }
+    }
+    @keyframes fade-up {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .leaflet-tooltip-left:before { border-left-color: #161616; }
+    .leaflet-tooltip-right:before { border-right-color: #161616; }
     .leaflet-container { font-family: 'Inter', sans-serif; background: #050505; }
     .leaflet-control-zoom a { background: #161616 !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.1) !important; }
     .leaflet-control-zoom a:hover { background: #262626 !important; }
@@ -28,44 +62,63 @@
 <body class="bg-[#000000]">
 
       <!--  Floating Download Actions for HTML Version  -->
-      <div class="min-h-screen flex flex-col items-center bg-[#000000] text-[#f2f2f2] overflow-x-hidden font-sans selection:bg-neutral-800">
+      <div class="min-h-screen flex flex-col items-center bg-[#000000] w-full text-[#f2f2f2] font-sans selection:bg-neutral-800 overflow-x-clip">
       
       <!--  Navigation  -->
-      <header class="w-full flex items-center justify-between px-6 py-4 max-w-[1200px] mx-auto sticky top-0 z-50 bg-[#000000]/80 backdrop-blur-md border-b border-white/[0.05]">
-        <div class="flex items-center gap-3">
-          <!--  SafeSpot Logo mockup  -->
-          <div class="flex gap-1 items-center justify-center">
-            <div class="w-5 h-5 rounded-full border-[3px] border-white relative before:absolute before:inset-0 before:m-auto before:w-2 before:h-2 before:bg-white before:rounded-full mix-blend-screen opacity-90 -ml-1"></div>
-          </div>
-          <span class="font-semibold text-[17px] tracking-tight">SafeSpot</span>
-        </div>
-        
-        <nav class="hidden md:flex items-center gap-7 text-[13px] text-neutral-400 font-medium">
-          <a href="#story" class="hover:text-white transition-colors">Why SafeSpot</a>
-          <a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a>
-          <a href="#map-layers" class="hover:text-white transition-colors">Data Layers</a>
-          <a href="#dashboard" class="hover:text-white transition-colors">Dashboard</a>
-        </nav>
-
-        <div class="hidden md:flex items-center gap-5 text-[13px] font-medium">
-          <a href="#dashboard" class="bg-white text-black px-4 py-1.5 rounded-full hover:bg-neutral-200 transition-all active:scale-95 flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            </span>
-            Live Alert Map
+      <header class="w-full sticky top-0 z-50 bg-[#000000]/80 backdrop-blur-md border-b border-white/[0.05]">
+        <div class="w-full flex items-center justify-between px-6 py-4 max-w-[1200px] mx-auto">
+          <a href="#" class="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
+            <!--  SafeSpot Logo mockup  -->
+            <div class="flex gap-1 items-center justify-center">
+              <div class="w-5 h-5 rounded-full border-[3px] border-white relative before:absolute before:inset-0 before:m-auto before:w-2 before:h-2 before:bg-white before:rounded-full mix-blend-screen opacity-90 -ml-1"></div>
+            </div>
+            <span class="font-semibold text-[17px] tracking-tight">SafeSpot</span>
           </a>
+        
+        <div class="flex items-center gap-3">
+          <nav class="hidden md:flex items-center gap-7 text-[13px] text-neutral-400 font-medium">
+            <a href="#story" class="hover:text-white transition-colors">Why SafeSpot</a>
+            <a href="#how-it-works-simple" class="hover:text-white transition-colors">How It Works</a>
+            <a href="#dashboard" class="hover:text-white transition-colors">Live Map</a>
+            <a href="#open-source" class="hover:text-white transition-colors">Open Source</a>
+            <a href="#team" class="hover:text-white transition-colors">Team</a>
+
+          </nav>
+
+          <div class="Header_navDivider__Jexuv hide-tablet w-[1px] h-4 bg-white/20 mx-1"></div>
+  
+          <div class="hidden md:flex items-center gap-3 text-[13px] font-medium">
+            <a href="#dashboard" class="bg-red-500/15 text-red-400 border border-red-500/30 px-3.5 py-1.5 rounded-full hover:bg-red-500/25 transition-all active:scale-95 flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              <span class="font-semibold">Extreme</span>
+              <span class="text-red-300/80 font-mono">36.5°C</span>
+            </a>
+            <button id="location-pill" onclick="requestUserLocation(true)" class="flex items-center gap-1.5 text-neutral-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer">
+              <i data-lucide="map-pin" class="w-3 h-3 text-green-400"></i>
+              <span id="location-text" class="text-neutral-300 text-[12px]">Locating...</span>
+            </button>
+          </div>
         </div>
+      </div>
       </header>
 
       <!--  Hero Section  -->
-      <section id="story" class="w-full flex flex-col items-start pt-32 pb-16 px-6 text-left max-w-[1200px] mx-auto relative">
-        <p class="text-sm uppercase tracking-widest text-orange-400 mb-6 font-semibold">Why SafeSpot?</p>
-        <h1 class="text-5xl md:text-[72px] font-medium tracking-[-0.03em] max-w-[1000px] leading-[1.05] mb-8 text-white text-left">
-          In 2021, a deadly heatwave<br class="hidden md:block"/>killed hundreds in Vancouver.
+      <section id="story" class="w-full relative overflow-hidden scroll-mt-24">
+        <!-- Background Gradient Layer -->
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0 z-0 [background-image:radial-gradient(circle_at_20%_20%,rgba(255,79,2,0.3)_0%,rgba(255,79,2,0)_50%),radial-gradient(circle_at_80%_80%,rgba(0,173,189,0.28)_0%,rgba(0,173,189,0)_50%),linear-gradient(135deg,rgba(0,0,0,0.96)_0%,rgba(255,79,2,0.18)_40%,rgba(0,0,0,0.9)_50%,rgba(0,173,189,0.18)_60%,rgba(0,0,0,0.95)_100%)] [background-position:0%_0%,100%_100%,0%_50%] [background-size:180%_180%,180%_180%,250%_250%] before:absolute before:left-[-5%] before:top-[-20%] before:h-[600px] before:w-[600px] before:rounded-full before:bg-[radial-gradient(circle,rgba(255,79,2,0.25)_0%,transparent_65%)] before:content-[''] before:[filter:blur(4px)] after:absolute after:bottom-[-15%] after:right-[-5%] after:h-[600px] after:w-[600px] after:rounded-full after:bg-[radial-gradient(circle,rgba(0,173,189,0.25)_0%,transparent_65%)] after:content-[''] after:[filter:blur(3px)] motion-safe:animate-[hero-gradient-flow_20s_ease-in-out_infinite] motion-safe:before:animate-[hero-glow-drift_12s_ease-in-out_infinite] motion-safe:after:animate-[hero-glow-drift-reverse_14s_ease-in-out_infinite] will-change-[background-position]"></div>
+        
+        <!-- Content Container -->
+        <div class="relative z-10 w-full flex flex-col items-start py-32 px-6 text-left max-w-[1200px] mx-auto border-b border-white/[0.05]">
+          <p class="text-sm uppercase tracking-widest text-orange-400 mb-6 font-semibold">Why SafeSpot?</p>
+        <h1 class="text-4xl md:text-[56px] font-medium tracking-tight max-w-[900px] leading-[1.15] mb-8 text-white text-left">
+          <span class="inline-block opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]">In 2021, a heat dome killed</span><br/>
+          <span class="inline-block opacity-0 animate-[fade-up_0.8s_ease-out_0.4s_forwards]">570 people in British Columbia.</span>
         </h1>
         
-        <div class="flex flex-col md:flex-row items-start md:items-end justify-between w-full max-w-[1000px] mt-4 mb-16 gap-8 md:gap-0">
+        <div class="flex flex-col md:flex-row items-start md:items-end justify-between w-full mt-4 mb-16 gap-8 md:gap-0">
           <div class="flex flex-col gap-4 text-left max-w-[600px]">
              <p class="text-lg md:text-xl text-neutral-400 leading-relaxed">
                Many victims lived near cooling centres — but had no way of knowing. If they had received a real-time alert and been guided to the nearest safe space, more lives could have been saved.
@@ -75,19 +128,235 @@
              </p>
           </div>
           
-          <a href="#" class="flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 transition-colors group shrink-0 md:mb-1">
-            <span class="text-xs font-semibold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full">News</span>
-            <span class="text-neutral-300">Vancouver heat dome, June 2021</span>
-            <i data-lucide="arrow-right" class="w-4 h-4 text-neutral-500 group-hover:translate-x-0.5 transition-transform" ></i>
-          </a>
+          <div class="flex flex-col gap-3 shrink-0 md:mb-1">
+            <a href="https://www.cbc.ca/news/canada/british-columbia/bc-heat-dome-sudden-deaths-570-1.6122316" target="_blank" class="flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 transition-colors group">
+              <span class="text-xs font-semibold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full w-[60px] text-center">CBC</span>
+              <span class="text-neutral-300">B.C. Sudden Deaths (2021)</span>
+              <i data-lucide="arrow-up-right" class="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
+            </a>
+            <a href="https://climateinstitute.ca/reports/extreme-heat-in-canada/" target="_blank" class="flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 transition-colors group">
+              <span class="text-xs font-semibold bg-cyan-500/20 text-cyan-400 px-2.5 py-1 rounded-full w-[60px] text-center">Report</span>
+              <span class="text-neutral-300">Extreme Heat in Canada (2023)</span>
+              <i data-lucide="arrow-up-right" class="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
+            </a>
+            <a href="https://www.cbc.ca/news/canada/montreal/heat-wave-death-toll-1.4740031" target="_blank" class="flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 transition-colors group">
+              <span class="text-xs font-semibold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full w-[60px] text-center">CBC</span>
+              <span class="text-neutral-300">Montreal Heat Wave (2018)</span>
+              <i data-lucide="arrow-up-right" class="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
+            </a>
+          </div>
         </div>
         
+        </div>
+      </section>
+
+      <!--  Sponsors & Partners  -->
+
+
+
+      <!-- How It Works (Simple Horizontal View - Scrollytelling) -->
+      <section id="how-it-works-simple" class="w-full relative h-[200vh] bg-[#000000]">
+        <div class="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden border-b border-white/[0.05]">
+          <div class="w-full max-w-[1200px] mx-auto px-6">
+            <div class="mb-20">
+              <p class="text-sm uppercase tracking-widest text-orange-400 mb-4">How It Works</p>
+              <h2 class="text-4xl md:text-[40px] font-medium tracking-tight text-white mb-4">From Sensor to Safety</h2>
+              <p class="text-[15px] text-neutral-400 leading-relaxed">Unlike weather apps that report a city-wide average, SafeSpot measures the <span class="text-orange-400 font-medium">actual temperature where you are</span>.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16 relative">
+              <!-- Item 1 -->
+              <div class="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="0">
+                <div class="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div class="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div class="w-1.5 h-1.5 rounded-full bg-orange-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(251,146,60,0.8)] animate-[travel-dot_4s_linear_infinite]"></div>
+                   <div class="w-2.5 h-2.5 rounded-full bg-orange-400 border-[2px] border-orange-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(251,146,60,0.5)] transition-all relative"></div>
+                </div>
+                <h3 class="text-[15px] font-medium text-white group-hover:text-orange-400 transition-colors mb-2">Measure Real Local Heat</h3>
+                <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">A Raspberry Pi sensor captures actual ground-level temperature.</p>
+                <div class="mt-4"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-900 text-orange-300">Hardware</span></div>
+              </div>
+
+              <!-- Item 2 -->
+              <div class="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="1">
+                <div class="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div class="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div class="w-1.5 h-1.5 rounded-full bg-purple-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(192,132,252,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:1s]"></div>
+                   <div class="w-2.5 h-2.5 rounded-full bg-purple-400 border-[2px] border-purple-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(192,132,252,0.5)] transition-all relative"></div>
+                </div>
+                <h3 class="text-[15px] font-medium text-white group-hover:text-purple-400 transition-colors mb-2">Map Urban Heat Zones</h3>
+                <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">ArcGIS data overlays heat island zones on an interactive map.</p>
+                <div class="mt-4"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-900 text-purple-300">GIS Data</span></div>
+              </div>
+
+              <!-- Item 3 -->
+              <div class="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="2">
+                <div class="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div class="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div class="w-1.5 h-1.5 rounded-full bg-red-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(248,113,113,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:2s]"></div>
+                   <div class="w-2.5 h-2.5 rounded-full bg-red-400 border-[2px] border-red-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(248,113,113,0.5)] transition-all relative"></div>
+                </div>
+                <h3 class="text-[15px] font-medium text-white group-hover:text-red-400 transition-colors mb-2">Trigger Danger Alerts</h3>
+                <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">A warning fires when heat and location combine into extreme risk.</p>
+                <div class="mt-4"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-red-900 text-red-300">Alert System</span></div>
+              </div>
+
+              <!-- Item 4 -->
+              <div class="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="3">
+                <div class="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div class="w-full h-[1px] bg-gradient-to-r from-white/10 to-transparent absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div class="w-1.5 h-1.5 rounded-full bg-green-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:3s]"></div>
+                   <div class="w-2.5 h-2.5 rounded-full bg-green-400 border-[2px] border-green-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(74,222,128,0.5)] transition-all relative"></div>
+                </div>
+                <h3 class="text-[15px] font-medium text-white group-hover:text-green-400 transition-colors mb-2">Route to Safety</h3>
+                <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">Instantly calculates your nearest cooling centre via Maps.</p>
+                <div class="mt-4"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-green-900 text-green-300">Routing</span></div>
+              </div>
+            </div>
+
+            <button onclick="document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);" class="flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-colors group mt-10">
+              <span>View all details</span> <span class="group-hover:translate-x-1 transition-transform">→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works Section (Detailed Vertical Style) -->
+      <section id="how-it-works-detailed" class="hidden w-full max-w-[1200px] mx-auto py-32 px-6 border-b border-white/[0.05]">
+        <div class="mb-20">
+          <p class="text-sm uppercase tracking-widest text-orange-400 mb-4">How It Works</p>
+          <h2 class="text-4xl md:text-[40px] font-medium tracking-tight text-white mb-4">From Sensor to Safety</h2>
+          <p class="text-[15px] text-neutral-400 leading-relaxed">Unlike weather apps that report a city-wide average, SafeSpot measures the <span class="text-orange-400 font-medium">actual temperature where you are</span>.</p>
+        </div>
+
+        <div class="relative w-full pl-6 md:pl-8 mt-12">
+          <!-- Continuous left line -->
+          <div class="absolute left-0 top-2 bottom-0 w-[1px] bg-white/10"></div>
+          
+          <div class="flex flex-col gap-14 md:gap-16">
+            
+            <!-- Item 1 -->
+            <div class="relative group cursor-pointer block">
+              <!-- Indicator Dot -->
+              <div class="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-orange-400 border-[2px] border-orange-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(251,146,60,0.5)]"></div>
+              
+              <div class="flex flex-col gap-2">
+                <h3 class="text-lg md:text-[20px] font-medium text-white group-hover:text-orange-400 transition-colors">Measure Real Local Heat</h3>
+                <p class="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">A custom hardware Raspberry Pi temperature sensor is deployed directly in high-risk heat zones. Instead of relying on generalized city-wide weather reports, our sensor sends hyper-local, real-time data to a FastAPI backend at regular intervals. This live reading is instantly rendered on the map, capturing the true ground-level climate reality.</p>
+                <div class="mt-4 mb-6"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-900 text-orange-300">Hardware</span></div>
+                
+                <figure class="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Hardware Sensor" src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80" class="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy">
+                </figure>
+              </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div class="relative group cursor-pointer block">
+              <div class="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-purple-400 border-[2px] border-purple-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(192,132,252,0.5)]"></div>
+              <div class="flex flex-col gap-2">
+                <h3 class="text-lg md:text-[20px] font-medium text-white group-hover:text-purple-400 transition-colors">Map Urban Heat Zones</h3>
+                <p class="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">We integrate live ArcGIS REST API data to display Toronto's 'Impervious Surface and Urban Heat Island Effect' layer directly on an interactive Leaflet map. This creates colour-coded zones—from yellow to deep red—clearly distinguishing high, medium, and low heat risk areas so you can instantly see which neighbourhoods are most vulnerable.</p>
+                <div class="mt-4 mb-6"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-900 text-purple-300">GIS Data</span></div>
+                
+                <figure class="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Map Data" src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1600&q=80" class="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy">
+                </figure>
+              </div>
+            </div>
+
+            <!-- Item 3 -->
+            <div class="relative group cursor-pointer block">
+              <div class="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-cyan-400 border-[2px] border-cyan-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(34,211,238,0.5)]"></div>
+              <div class="flex flex-col gap-2">
+                <h3 class="text-lg md:text-[20px] font-medium text-white group-hover:text-cyan-400 transition-colors">Find You</h3>
+                <p class="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">Using secure browser APIs, SafeSpot pinpoints your exact geographic coordinates in real time. By quickly detecting your position, the application establishes your precise location as the critical starting point for all subsequent safety and routing calculations.</p>
+                <div class="mt-4 mb-6"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-cyan-900 text-cyan-300">GPS</span></div>
+                
+                <figure class="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Location Tracking" src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80" class="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy">
+                </figure>
+              </div>
+            </div>
+
+            <!-- Item 4 -->
+            <div class="relative group cursor-pointer block">
+              <div class="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-pink-400 border-[2px] border-pink-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(244,114,182,0.5)]"></div>
+              <div class="flex flex-col gap-2">
+                <h3 class="text-lg md:text-[20px] font-medium text-white group-hover:text-pink-400 transition-colors">Cross-Check Your Risk</h3>
+                <p class="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">Your live GPS coordinates are dynamically cross-referenced against the ArcGIS urban heat island layers. Because experiencing extreme temperatures inside a known heat island is exponentially more dangerous, SafeSpot combines these two data points—hardware sensor readings and geospatial risk zoning—to accurately calculate your individualized risk level.</p>
+                <div class="mt-4 mb-6"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-pink-900 text-pink-300">Risk Engine</span></div>
+                
+                <figure class="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Data Dashboard" src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80" class="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy">
+                </figure>
+              </div>
+            </div>
+
+            <!-- Item 5 -->
+            <div class="relative group cursor-pointer block">
+              <div class="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-red-400 border-[2px] border-red-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(248,113,113,0.5)]"></div>
+              <div class="flex flex-col gap-2">
+                <h3 class="text-lg md:text-[20px] font-medium text-white group-hover:text-red-400 transition-colors">Trigger a Danger Alert</h3>
+                <p class="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">When our Raspberry Pi sensor detects that the local temperature has exceeded the critical 35°C threshold, the app automatically triggers an 'Extreme Heat Warning'. A prominent alert banner fires, displaying your current temperature and risk level, immediately prompting you to find a cool space.</p>
+                <div class="mt-4 mb-6"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-red-900 text-red-300">Alert System</span></div>
+                
+                <figure class="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Alert System" src="https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=1600&q=80" class="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy">
+                </figure>
+              </div>
+            </div>
+
+            <!-- Item 6 -->
+            <div class="relative group cursor-pointer block">
+              <div class="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-green-400 border-[2px] border-green-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(74,222,128,0.5)]"></div>
+              <div class="flex flex-col gap-2">
+                <h3 class="text-lg md:text-[20px] font-medium text-white group-hover:text-green-400 transition-colors">Route You to Safety</h3>
+                <p class="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">Once a danger alert is triggered, the system automatically calculates the distance to the closest City of Toronto cooling centre or library branch. It highlights these safe spaces on your map and displays actionable information, such as "Nearest Cooling Centre: [Name], 0.3 km away", providing you with an immediate, life-saving route to safety.</p>
+                <div class="mt-4 mb-6"><span class="text-xs px-2 py-0.5 rounded-full font-medium bg-green-900 text-green-300">Routing</span></div>
+                
+                <figure class="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Routing to Safety" src="../images/routing_map.png" class="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy">
+                </figure>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="mt-20 flex justify-start">
+          <button onclick="document.getElementById('how-it-works-detailed').classList.add('hidden'); document.getElementById('how-it-works-simple').classList.remove('hidden'); setTimeout(() => document.getElementById('how-it-works-simple').scrollIntoView({ behavior: 'smooth' }), 50);" class="inline-flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-colors group">
+            <span class="group-hover:-translate-x-1 transition-transform">←</span> <span>Show less</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="dashboard" class="w-full max-w-[1200px] mx-auto py-32 px-6 md:px-12 border-b border-white/[0.05] scroll-mt-24">
+        <div class="mb-16">
+          <p class="text-sm uppercase tracking-widest text-orange-400 mb-4 font-semibold">Live Map</p>
+          <h2 class="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-4">Interactive Heat Dashboard</h2>
+          <p class="text-[15px] md:text-[16px] text-neutral-400 max-w-[800px] leading-relaxed">
+            Experience our live integration. We combine real-time hardware sensor readings with ArcGIS mapping to highlight extreme urban heat zones and safely route users to cooling centres.
+          </p>
+        </div>
         <!--  Main App Mockup Image  -->
         <!--  Main App Mockup HTML  -->
-        <div class="self-center w-full min-h-[720px] max-w-[1050px] rounded-[16px] border border-white/10 bg-[#0a0a0a] overflow-hidden relative shadow-[0_40px_100px_rgba(255,255,255,0.03)] flex flex-col md:flex-row ring-1 ring-white/5 mt-10">
+        <div class="w-full min-h-[760px] rounded-[16px] border border-white/10 bg-[#0a0a0a] overflow-hidden relative shadow-[0_40px_100px_rgba(255,255,255,0.03)] flex flex-col md:flex-row ring-1 ring-white/5">
            
            <!--  Left Sidebar: Data Cards  -->
-           <div class="w-full md:w-[320px] lg:w-[340px] border-r border-white/5 bg-[#111111]/90 backdrop-blur-xl flex flex-col z-20 shrink-0">
+           <div class="w-full md:w-[280px] border-r border-white/5 bg-[#111111]/90 backdrop-blur-xl flex flex-col z-20 shrink-0">
               <!-- Header -->
               <div class="h-16 border-b border-white/5 flex items-center px-6 justify-between gap-4 w-full">
                  <div class="flex items-center gap-3">
@@ -170,18 +439,26 @@
                  <!-- Map Legend -->
                  <div class="flex flex-col gap-3">
                    <div class="text-[11px] font-semibold text-neutral-500 tracking-wider uppercase">Map Layers</div>
-                   <div class="bg-white/[0.03] border border-white/10 rounded-xl p-4 grid grid-cols-2 gap-y-4 gap-x-2">
-                     <div class="flex items-center gap-2 text-[12px] text-neutral-300">
-                       <div class="w-3 h-3 rounded bg-red-600/80 border border-red-500/50 shrink-0"></div> High Heat
+                   <div class="bg-white/[0.03] border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+                     <div class="grid grid-cols-3 gap-x-2">
+                       <div class="flex items-center gap-1.5 text-[11px] text-neutral-300">
+                         <div class="w-3 h-3 rounded bg-[#dc2626]/85 border border-red-500/50 shrink-0"></div> High
+                       </div>
+                       <div class="flex items-center gap-1.5 text-[11px] text-neutral-300">
+                         <div class="w-3 h-3 rounded bg-[#f97316]/65 border border-orange-500/50 shrink-0"></div> Mid
+                       </div>
+                       <div class="flex items-center gap-1.5 text-[11px] text-neutral-300">
+                         <div class="w-3 h-3 rounded bg-[#facc15]/45 border border-yellow-500/50 shrink-0"></div> Low
+                       </div>
                      </div>
-                     <div class="flex items-center gap-2 text-[12px] text-neutral-300">
-                       <div class="w-3 h-3 rounded bg-red-500/30 border border-red-500/20 shrink-0"></div> Low Heat
-                     </div>
-                     <div class="flex items-center gap-2 text-[12px] text-neutral-300">
-                       <div class="w-4 h-4 rounded-full bg-[#111] border border-blue-500/30 flex items-center justify-center text-blue-400 text-[10px] shrink-0">❄️</div> Cooling Centre
-                     </div>
-                     <div class="flex items-center gap-2 text-[12px] text-neutral-300">
-                       <div class="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shrink-0">📚</div> Library
+                     <div class="h-px w-full bg-white/5"></div>
+                     <div class="grid grid-cols-2 gap-x-2">
+                       <div class="flex items-center gap-1.5 text-[11px] text-neutral-300">
+                         <div class="w-4 h-4 rounded-full bg-[#111] border border-blue-500/30 flex items-center justify-center text-blue-400 text-[10px] shrink-0">❄️</div> Cooling
+                       </div>
+                       <div class="flex items-center gap-1.5 text-[11px] text-neutral-300">
+                         <div class="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shrink-0">📚</div> Library
+                       </div>
                      </div>
                    </div>
                  </div>
@@ -196,7 +473,121 @@
         </div>
       </section>
 
-      <!--  Sponsors & Partners  -->
+      <!-- GitHub Integration -->
+      <section id="open-source" class="w-full relative py-32 border-b border-white/[0.05] scroll-mt-24 overflow-hidden">
+        
+        <!-- Video Background with Mask -->
+        <div class="absolute inset-0 w-full h-full z-0 flex justify-center items-center pointer-events-none">
+          <video autoplay loop muted playsinline disablepictureinpicture disableremoteplayback class="min-w-full min-h-full object-cover">
+            <source src="https://static.linear.app/assets/hero/INTAKE-v4.output.h264.crf18.mp4" type="video/mp4">
+          </video>
+          <!-- Gradient Masks to softly darken the background for readability -->
+          <div class="absolute inset-0 bg-[#000000]/10"></div>
+          <div class="absolute inset-0 bg-gradient-to-b from-[#000000] via-transparent to-[#000000]"></div>
+          <div class="absolute inset-0 bg-gradient-to-r from-[#000000] via-transparent to-[#000000]"></div>
+        </div>
+
+        <!-- Content Container -->
+        <div class="relative z-10 w-full max-w-[1200px] mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center gap-12 md:gap-16">
+          <div class="flex-1">
+            <h2 class="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-6 drop-shadow-lg">Open Source & Ready</h2>
+            <p class="text-[17px] text-neutral-300 leading-relaxed mb-8 drop-shadow-md font-medium">
+              Explore the complete SafeSpot architecture. From Raspberry Pi sensor scripts to the FastAPI backend and Next.js frontend—everything is available for review and contribution.
+            </p>
+            <a href="https://github.com/codexperts2024/SafeSpot_codeXperts" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-white bg-black/40 hover:bg-black/60 border border-white/20 px-6 py-3 rounded-full text-sm font-medium transition-colors backdrop-blur-md shadow-lg">
+              <i data-lucide="github" class="w-4 h-4"></i>
+              View on GitHub
+              <span class="text-neutral-400 ml-1">→</span>
+            </a>
+          </div>
+          <div class="flex-1 w-full relative">
+            <div class="spotlight-card relative w-full max-w-[500px] ml-auto rounded-xl border border-white/10 bg-[#0d0d0d]/70 backdrop-blur-xl shadow-[0_0_50px_rgba(255,255,255,0.05)] overflow-hidden group">
+              <div class="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-10 mix-blend-screen" style="background: radial-gradient(400px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.08), transparent 40%);"></div>
+              <div class="absolute inset-0 bg-gradient-to-tr from-green-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+              <div class="relative z-20 h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-white/[0.02]">
+                <div class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
+                <div class="ml-2 text-[11px] text-neutral-500 font-mono tracking-wider">main.py</div>
+              </div>
+              <div class="p-6 text-[13px] font-mono leading-relaxed text-neutral-300 overflow-x-auto whitespace-pre">
+<div class="flex"><span class="text-neutral-600 mr-4 select-none">1</span><span class="text-pink-400">@app</span><span class="text-white">.post(</span><span class="text-green-400">"/api/sensor-data"</span><span class="text-white">)</span></div>
+<div class="flex"><span class="text-neutral-600 mr-4 select-none">2</span><span class="text-purple-400">async def</span> <span class="text-blue-400">receive_data</span><span class="text-white">(data: SensorData):</span></div>
+<div class="flex bg-white/[0.04] -mx-6 px-6 border-l-2 border-green-400"><span class="text-neutral-600 mr-4 select-none">3</span><span>    </span><span class="text-pink-400">if</span> <span class="text-white">data.temperature > </span><span class="text-orange-400">35.0</span><span class="text-white">:</span></div>
+<div class="flex bg-white/[0.04] -mx-6 px-6 border-l-2 border-green-400"><span class="text-neutral-600 mr-4 select-none">4</span><span>        </span><span class="text-blue-400">trigger_alert</span><span class="text-white">(</span><span class="text-green-400">"Extreme Heat Warning"</span><span class="text-white">)</span></div>
+<div class="flex"><span class="text-neutral-600 mr-4 select-none">5</span><span>    </span><span class="text-purple-400">return</span> <span class="text-white">{</span><span class="text-green-400">"status"</span><span class="text-white">: </span><span class="text-green-400">"success"</span><span class="text-white">}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- The Team Section -->
+      <section id="team" class="w-full max-w-[1200px] mx-auto py-32 px-6 md:px-12 border-b border-white/[0.05] scroll-mt-24">
+        <div class="text-center mb-20">
+          <p class="text-sm uppercase tracking-widest text-purple-400 mb-4">Behind SafeSpot</p>
+          <h2 class="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-4">Meet the codeXperts</h2>
+          <p class="text-[17px] text-neutral-400">The engineers and designers behind the project.</p>
+        </div>
+        
+        <div class="flex flex-wrap justify-center gap-6 md:gap-10 lg:gap-14 max-w-[1200px] mx-auto">
+           <!-- Gary -->
+           <a href="https://github.com/GarySkywalker-droid" class="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div class="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div class="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style="background: radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%);"></div>
+                 <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/gary.jpg" alt="Gary" class="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+              </div>
+              <div class="font-medium text-white text-[16px] mb-1">Gary</div>
+              <div class="text-neutral-500 text-[13px] text-center uppercase tracking-wide">Hardware</div>
+           </a>
+           
+           <!-- Marcos -->
+           <a href="https://github.com/markeenmelo" target="_blank" rel="noopener noreferrer" class="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div class="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div class="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style="background: radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%);"></div>
+                 <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/marcos.png" alt="Marcos" class="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+              </div>
+              <div class="font-medium text-white text-[16px] mb-1">Marcos</div>
+              <div class="text-neutral-500 text-[13px] text-center uppercase tracking-wide">Backend</div>
+           </a>
+           
+           <!-- Paul -->
+           <a href="https://github.com/minsikpaul92" target="_blank" rel="noopener noreferrer" class="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div class="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div class="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style="background: radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%);"></div>
+                 <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/paul.jpg" alt="Paul" class="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+              </div>
+              <div class="font-medium text-white text-[16px] mb-1">Paul</div>
+              <div class="text-neutral-500 text-[13px] text-center uppercase tracking-wide">Frontend</div>
+           </a>
+           
+           <!-- Seulgi -->
+           <a href="https://github.com/seulgi-dev" target="_blank" rel="noopener noreferrer" class="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div class="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div class="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style="background: radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%);"></div>
+                 <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/seulgi.jpg" alt="Seulgi" class="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+              </div>
+              <div class="font-medium text-white text-[16px] mb-1">Seulgi</div>
+              <div class="text-neutral-500 text-[13px] text-center uppercase tracking-wide">UI/UX</div>
+           </a>
+           
+           <!-- Arun -->
+           <a href="https://github.com/arunrajea" target="_blank" rel="noopener noreferrer" class="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div class="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div class="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style="background: radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%);"></div>
+                 <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/arun.jpg" alt="Arun" class="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+              </div>
+              <div class="font-medium text-white text-[16px] mb-1">Arun</div>
+              <div class="text-neutral-500 text-[13px] text-center uppercase tracking-wide">GPS & Routing</div>
+           </a>
+        </div>
+      </section>
+
       <section id="sponsors" class="w-full max-w-[1200px] mx-auto py-16 overflow-hidden relative border-t border-white/[0.05]">
         <div class="text-center mb-10">
            <p class="text-sm uppercase tracking-widest text-neutral-500 font-semibold">Our Partners</p>
@@ -258,473 +649,23 @@
         </div>
       </section>
 
-      <!--  Value Prop  -->
-      <section class="w-full max-w-[1200px] mx-auto pt-32 pb-24 px-6 border-b border-white/[0.05]">
-        <h2 class="text-[32px] md:text-[56px] font-medium tracking-[-0.03em] mb-20 max-w-[900px] leading-[1.1] text-white">
-          A new species of product tool. <span class="text-neutral-500">Purpose-built for modern teams with AI workflows at its core, SafeSpot sets a new standard for planning and building products.</span>
-        </h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-           <!--  Card 1  -->
-           <div class="flex flex-col gap-6 group">
-              <div class="text-[10px] uppercase tracking-widest text-neutral-600 font-mono">Fig 1.1</div>
-              <div class="h-64 w-full rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent flex items-center justify-center relative overflow-hidden group-hover:bg-white/[0.05] transition-colors">
-                 <!--  Isometric Stack Icon  -->
-                 <div class="w-32 h-32 relative">
-                    <div class="w-24 h-24 border-[0.5px] border-white/20 scale-y-50 rotate-45 absolute top-10 left-4 backdrop-blur-md bg-white/5"></div>
-                    <div class="w-24 h-24 border-[0.5px] border-white/30 scale-y-50 rotate-45 absolute top-8 left-4 backdrop-blur-md bg-white/10"></div>
-                    <div class="w-24 h-24 border-[0.5px] border-white/40 scale-y-50 rotate-45 absolute top-6 left-4 backdrop-blur-md bg-white/10 shadow-[0_10px_20px_rgba(0,0,0,0.5)]"></div>
-                 </div>
-              </div>
-              <div>
-                <h3 class="text-[17px] font-medium text-white mb-3">Built for purpose</h3>
-                <p class="text-[15px] text-neutral-400 leading-normal pr-4">SafeSpot is shaped by the practices and principles of world-class product teams.</p>
-              </div>
-           </div>
-           
-           <!--  Card 2  -->
-           <div class="flex flex-col gap-6 group">
-              <div class="text-[10px] uppercase tracking-widest text-neutral-600 font-mono">Fig 1.2</div>
-              <div class="h-64 w-full rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent flex items-center justify-center relative overflow-hidden group-hover:bg-white/[0.05] transition-colors">
-                 <!--  Abstract geometric composition  -->
-                 <div class="w-32 h-32 relative">
-                    <div class="w-16 h-16 border-[0.5px] border-white/40 scale-y-50 rotate-45 absolute top-12 left-0 backdrop-blur-md bg-white/5 shadow-2xl"></div>
-                    <div class="w-16 h-16 border-[0.5px] border-white/40 scale-y-50 rotate-45 absolute top-6 left-8 backdrop-blur-md bg-white/5 shadow-2xl"></div>
-                    <div class="w-16 h-16 border-[0.5px] border-white/40 scale-y-50 rotate-45 absolute top-12 left-16 backdrop-blur-md bg-white/5 shadow-2xl"></div>
-                 </div>
-              </div>
-              <div>
-                <h3 class="text-[17px] font-medium text-white mb-3">Powered by AI agents</h3>
-                <p class="text-[15px] text-neutral-400 leading-normal pr-4">Designed for workflows shared by humans and agents. From drafting PRDs to pushing PRs.</p>
-              </div>
-           </div>
-
-           <!--  Card 3  -->
-           <div class="flex flex-col gap-6 group">
-              <div class="text-[10px] uppercase tracking-widest text-neutral-600 font-mono">Fig 1.3</div>
-              <div class="h-64 w-full rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent flex items-center justify-center relative overflow-hidden group-hover:bg-white/[0.05] transition-colors px-12">
-                 <!--  SafeSpot velocity lines mask  -->
-                 <div class="w-full flex justify-between rotate-45 translate-x-4 -translate-y-4 opacity-40">
-                   <div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 1"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.92"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.84"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.76"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.6799999999999999"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.6"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.52"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.43999999999999995"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.36"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.28"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.19999999999999996"></div>
-<div class="w-[1px] h-40 bg-gradient-to-b from-white to-transparent" style="opacity: 0.12"></div>
-                 </div>
-              </div>
-              <div>
-                <h3 class="text-[17px] font-medium text-white mb-3">Designed for speed</h3>
-                <p class="text-[15px] text-neutral-400 leading-normal pr-4">Reduces noise and restores momentum to help teams ship with high velocity and focus.</p>
-              </div>
-           </div>
-        </div>
-      </section>
-
-      <!--  Feature Section 1  -->
-      <section class="w-full max-w-[1200px] mx-auto py-32 px-6 border-b border-white/[0.05]">
-        <div class="flex flex-col md:flex-row gap-12 md:gap-24 mb-16">
-          <div class="flex-1">
-             <h2 class="text-3xl md:text-[44px] font-medium tracking-tight leading-[1.1] max-w-[340px]">Make product operations self-driving</h2>
-          </div>
-          <div class="flex-1 lg:flex-[1.2]">
-            <p class="text-lg md:text-[21px] text-neutral-400 mb-8 max-w-[500px] leading-relaxed">
-              Turn conversations and customer feedback into actionable issues that are routed, labeled, and prioritized for the right team.
-            </p>
-            <a href="#" class="flex items-center gap-3 text-sm font-medium text-neutral-300 hover:text-white transition-colors group w-max">
-              <span class="font-mono text-neutral-600 text-[11px] uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">1.0</span> 
-              <span>Intake</span> 
-              <i data-lucide="arrow-right" class="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" ></i>
-            </a>
-          </div>
-        </div>
-        
-        <!--  Thread mockup image representation  -->
-        <div class="w-full h-[500px] rounded-[24px] border border-white/5 bg-[#080808] overflow-hidden mb-16 flex relative shadow-2xl">
-          <div class="w-full max-w-[400px] border-r border-[#1a1a1a] p-4 flex flex-col justify-end bg-gradient-to-b from-[#0a0a0a] to-[#121212]">
-            <div class="flex flex-col gap-6 h-full p-4 justify-end pb-8">
-              <div class="text-xs font-semibold text-neutral-500 tracking-wider mb-2">Thread in #feedback</div>
-              
-              <div class="flex gap-4 items-start">
-                <div class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center font-bold text-xs ring-1 ring-blue-500/30">d</div>
-                <div class="flex flex-col gap-1 w-full text-[13px]">
-                  <div class="text-neutral-400 font-medium">didier <span class="text-neutral-600 font-normal">12:59 PM</span></div>
-                  <div class="text-neutral-300">Yes, we're still blocking initial render on a full vehicle_state sync every time...</div>
-                </div>
-              </div>
-
-              <div class="flex gap-4 items-start">
-                <div class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-xs ring-1 ring-purple-500/30">a</div>
-                <div class="flex flex-col gap-1 w-full text-[13px]">
-                  <div class="text-neutral-400 font-medium">andreas <span class="text-neutral-600 font-normal">12:59 PM</span></div>
-                  <div class="text-neutral-300">Feels like we could render sooner and load the rest in the background. Probably also worth tracking startup timing so we know how often this happens!</div>
-                </div>
-              </div>
-              
-              <div class="mt-4 border border-white/10 rounded-lg p-3 bg-white/5 text-[13px] text-white flex items-center justify-between">
-                <span>@SafeSpot create urgent issues and assign to me</span>
-                <div class="bg-blue-600 px-3 py-1 rounded text-white font-medium ml-2">-></div>
-              </div>
-            </div>
-          </div>
-          <div class="flex-1 bg-[#0f0f0f] p-8 hidden md:block border-l border-white/5 opacity-50 relative pointer-events-none grayscale">
-             <!--  Abstract representation of SafeSpot UI board  -->
-             <div class="flex gap-6 h-full text-xs font-medium text-neutral-600">
-                <div class="flex-1 flex flex-col gap-3">
-                  <div class="mb-2 text-white/50">Todo <span class="ml-2 px-1.5 py-0.5 bg-white/10 rounded">71</span></div>
-                  <div class="bg-white/5 border border-white/10 rounded-lg p-4 h-24 shadow-sm flex flex-col justify-between">
-                    <div>ENG-1087</div>
-                    <div class="text-white">Remove UI Inconsistencies</div>
-                  </div>
-                  <div class="bg-white/5 border border-white/10 rounded-lg p-4 h-32 shadow-sm">
-                    <div>ENG-2088</div>
-                    <div class="text-white mb-2">TypeError: Cannot read properties</div>
-                    <span class="bg-red-500/20 text-red-300 px-2 py-0.5 rounded text-[10px]">Bug</span>
-                  </div>
-                </div>
-                <div class="flex-1 flex flex-col gap-3">
-                  <div class="mb-2 text-white/50">In Progress <span class="ml-2 px-1.5 py-0.5 bg-white/10 rounded">3</span></div>
-                  <div class="bg-white/5 border border-white/10 rounded-lg p-4 h-32 shadow-sm flex flex-col justify-between">
-                    <div>ENG-1087</div>
-                    <div class="text-white">Remove contentData from GraphQL API</div>
-                  </div>
-                  <div class="bg-white/5 border border-white/10 rounded-lg p-4 h-24 shadow-sm flex flex-col justify-between">
-                    <div>MKT-1229</div>
-                    <div class="text-white">Launch page assets</div>
-                  </div>
-                </div>
-             </div>
-             
-             <!--  Gradient fade out to right  -->
-             <div class="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#0f0f0f] to-transparent"></div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-6">
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">1.1</span> SafeSpot Agent</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">1.2</span> Triage</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">1.3</span> Customer Requests</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">1.4</span> SafeSpot Asks</div>
-        </div>
-      </section>
-
-      <!--  Feature Section 2 (Roadmap)  -->
-      <section class="w-full max-w-[1200px] mx-auto py-32 px-6 border-b border-white/[0.05]">
-        <div class="flex flex-col md:flex-row gap-12 md:gap-24 mb-16">
-          <div class="flex-1">
-             <h2 class="text-3xl md:text-[44px] font-medium tracking-tight leading-[1.1] max-w-[400px]">Define the product direction</h2>
-          </div>
-          <div class="flex-1 lg:flex-[1.2]">
-            <p class="text-lg md:text-[21px] text-neutral-400 mb-8 max-w-[500px] leading-relaxed">
-              Plan and navigate from idea to launch. Align your team with product initiatives, strategic roadmaps, and clear, up-to-date PRDs.
-            </p>
-            <a href="#" class="flex items-center gap-3 text-sm font-medium text-neutral-300 hover:text-white transition-colors group w-max">
-              <span class="font-mono text-neutral-600 text-[11px] uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">2.0</span> 
-              <span>Plan</span> 
-              <i data-lucide="arrow-right" class="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" ></i>
-            </a>
-          </div>
-        </div>
-        
-        <!--  Roadmap Mockup Image  -->
-        <div class="w-full h-[400px] rounded-[24px] border border-white/5 bg-[#0a0a0a] overflow-hidden mb-16 flex flex-col relative shadow-2xl">
-           <div class="h-12 border-b border-white/10 bg-[#0f0f0f] flex items-center px-6">
-              <div class="flex gap-4 md:gap-12 w-full ml-[240px] text-xs font-mono text-neutral-500">
-                <span class="flex-1">MAR</span>
-                <span class="flex-1">APR</span>
-                <span class="flex-1">MAY</span>
-                <span class="flex-1">JUN</span>
-                <span class="flex-1">JUL</span>
-                <span class="flex-1 hidden md:block">AUG</span>
-              </div>
-           </div>
-           <div class="flex-1 flex overflow-hidden relative text-[13px]">
-              <div class="w-[240px] border-r border-white/10 bg-[#0a0a0a] flex flex-col p-4 z-10 shrink-0">
-                 <div class="text-xs font-semibold text-neutral-500 tracking-wider mb-4">Initiatives</div>
-                 <div class="flex flex-col gap-3 font-medium">
-                    <div class="flex items-center justify-between text-neutral-300">
-                       <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full border border-blue-500 shrink-0"/> Core Product</div>
-                       <span class="text-neutral-600 font-normal">99</span>
-                    </div>
-                    <div class="flex items-center justify-between text-neutral-300">
-                       <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full border border-purple-500 shrink-0"/> Infra stability</div>
-                       <span class="text-neutral-600 font-normal">28</span>
-                    </div>
-                    <div class="flex items-center justify-between text-neutral-300">
-                       <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full border border-green-500 shrink-0"/> Autonomous systems</div>
-                       <span class="text-neutral-600 font-normal">16</span>
-                    </div>
-                 </div>
-              </div>
-              
-              <div class="flex-1 relative min-w-[800px] overflow-hidden">
-                <!--  Vertical grid lines  -->
-                <div class="absolute inset-0 flex justify-between pointer-events-none opacity-20">
-                   <div class="w-px h-full bg-white/20"></div>
-<div class="w-px h-full bg-white/20"></div>
-<div class="w-px h-full bg-white/20"></div>
-<div class="w-px h-full bg-white/20"></div>
-<div class="w-px h-full bg-white/20"></div>
-<div class="w-px h-full bg-white/20"></div>
-                </div>
-                
-                <!--  Roadmap bars  -->
-                <div class="absolute top-8 left-[10%] w-[25%] h-8 bg-blue-500/10 border border-blue-500/20 rounded shadow-sm flex items-center px-3 text-blue-400 font-medium z-10 hover:bg-blue-500/20 transition-colors cursor-pointer">
-                  <div class="w-2 h-2 rounded-full border border-current mr-2 shrink-0"></div> UI Refresh
-                </div>
-                <div class="absolute top-20 left-[5%] w-[18%] h-8 bg-purple-500/10 border border-purple-500/20 rounded shadow-sm flex items-center px-3 text-purple-400 font-medium z-10 hover:bg-purple-500/20 transition-colors cursor-pointer">
-                  <div class="w-2 h-2 rounded-full border border-current mr-2 shrink-0"></div> Split fares
-                </div>
-                <div class="absolute top-32 left-[30%] w-[35%] h-8 bg-green-500/10 border border-green-500/20 rounded shadow-sm flex items-center px-3 text-green-400 font-medium z-10 hover:bg-green-500/20 transition-colors cursor-pointer">
-                  <div class="w-2 h-2 rounded-full border border-current mr-2 shrink-0"></div> Autonomy status clarity
-                </div>
-              </div>
-           </div>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-6">
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">2.1</span> Projects</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">2.2</span> Documents</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">2.3</span> Initiatives</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">2.4</span> Visual planning</div>
-        </div>
-      </section>
-
-      <!--  Feature Section 3 (PR & Agent Output)  -->
-      <section class="w-full max-w-[1200px] mx-auto py-32 px-6 border-b border-white/[0.05]">
-        <div class="flex flex-col md:flex-row gap-12 md:gap-24 mb-16">
-          <div class="flex-1">
-             <h2 class="text-3xl md:text-[44px] font-medium tracking-tight leading-[1.1] max-w-[400px]">Review PRs and agent output</h2>
-          </div>
-          <div class="flex-1 lg:flex-[1.2]">
-            <p class="text-lg md:text-[21px] text-neutral-400 mb-8 max-w-[500px] leading-relaxed">
-              Understand code changes at a glance with structural diffs for human and agent output. Review, discuss, and merge — all within SafeSpot.
-            </p>
-            <a href="#" class="flex items-center gap-3 text-sm font-medium text-neutral-300 hover:text-white transition-colors group w-max">
-              <span class="font-mono text-neutral-600 text-[11px] uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">4.0</span> 
-              <span>Reviews (Coming soon)</span> 
-              <i data-lucide="arrow-right" class="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" ></i>
-            </a>
-          </div>
-        </div>
-        
-        <!--  Code Diff Mockup Image  -->
-        <div class="w-full h-[400px] rounded-[24px] border border-white/5 bg-[#0a0a0a] overflow-hidden mb-16 flex flex-col relative shadow-2xl">
-           <div class="h-10 border-b border-white/10 bg-[#141414] flex items-center px-4">
-             <span class="text-[12px] font-mono text-neutral-400 flex items-center gap-2">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="text-neutral-500"><path d="M2.5 3.5a1 1 0 0 1 2 0v7a1 1 0 1 1-2 0v-7zM7.5 13.5a1 1 0 0 1 2 0v-7a1 1 0 1 1-2 0v7zM12.5 9.5a1 1 0 0 1 2 0v-4a1 1 0 1 1-2 0v4z"/></svg> 
-                kinetic-ios/src/screens/HomeScreen.tsx
-             </span>
-           </div>
-           <div class="flex-1 flex overflow-hidden font-mono text-[13px] bg-[#0c0c0c] leading-relaxed px-4 py-4 w-full">
-              
-              <div class="flex-1 flex w-full">
-                <div class="w-10 text-right pr-4 text-neutral-700 select-none">
-                  1<br/>2<br/>3<br/>4<br/>5<br/>6<br/>7<br/>8<br/>9<br/>10<br/>11
-                </div>
-                <div class="flex-1 text-[#d4d4d4] overflow-hidden whitespace-nowrap">
-                   <div class="opacity-60">import React from 'react'</div>
-                   <div class="opacity-60">import { View, ActivityIndicator } from 'react-native'</div>
-                   <div class="opacity-60 mb-4">import { Dashboard } from '@components/Dashboard'</div>
-                   <div>export const HomeScreen = () => {</div>
-                   <div class="bg-red-500/10 -mx-2 px-2 text-red-300">
-                     <span class="opacity-50 line-through mr-2">-</span>
-                     const isFullySynced = useVehicleState()
-                   </div>
-                   <div class="bg-green-500/10 -mx-2 px-2 text-green-300">
-                     <span class="opacity-50 mr-2">+</span>
-                     const { vehicleState, syncStatus } = useVehicleState()
-                   </div>
-                   <div class="text-yellow-100">  </div>
-                   <div class="bg-red-500/10 -mx-2 px-2 text-red-300">
-                     <span class="opacity-50 line-through mr-2">-</span>
-                     if (!isFullySynced) {
-                   </div>
-                   <div class="bg-green-500/10 -mx-2 px-2 text-green-300">
-                     <span class="opacity-50 mr-2">+</span>
-                     if (syncStatus === SyncStatus.PENDING) {
-                   </div>
-                   <div>    return &lt;ActivityIndicator size="large" /&gt;</div>
-                   <div>  }</div>
-                   <div>}</div>
-                </div>
-              </div>
-
-           </div>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-6">
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">4.1</span> Diff Viewer</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">4.2</span> Contextual Chat</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">4.3</span> Direct merges</div>
-           <div class="text-[15px] text-white border-t border-white/10 pt-4 flex gap-4"><span class="font-mono text-neutral-600 text-xs">4.4</span> CI/CD Sync</div>
-        </div>
-      </section>
-
-      <!--  Changelog Section  -->
-      <section class="w-full max-w-[1200px] mx-auto py-32 px-6 border-b border-white/[0.05]">
-        <h2 class="text-4xl md:text-[56px] font-medium tracking-tight mb-20 max-w-[400px]">Changelog</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
-          <!-- Changelog Items -->
-  <div class="flex flex-col gap-5 border-t border-white/10 pt-6 group cursor-pointer relative top-0 hover:-translate-y-1 transition-transform">
-    <div class="w-2 h-2 rounded-full bg-neutral-600 relative before:absolute before:inset-0 before:-m-1 before:rounded-full before:border before:border-neutral-600 group-hover:bg-white group-hover:before:border-white transition-colors"></div>
-    <h3 class="text-[15px] font-medium text-white group-hover:text-blue-400 transition-colors">Advanced filters and share issues in private teams</h3>
-    <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">Refine your searches, views, and dashboards with advanced filters.</p>
-    <div class="text-[11px] font-mono text-neutral-600 mt-2 uppercase tracking-widest">Feb 12, 2025</div>
-  </div>
-  <div class="flex flex-col gap-5 border-t border-white/10 pt-6 group cursor-pointer relative top-0 hover:-translate-y-1 transition-transform">
-    <div class="w-2 h-2 rounded-full bg-neutral-600 relative before:absolute before:inset-0 before:-m-1 before:rounded-full before:border before:border-neutral-600 group-hover:bg-white group-hover:before:border-white transition-colors"></div>
-    <h3 class="text-[15px] font-medium text-white group-hover:text-blue-400 transition-colors">SafeSpot MCP for product management</h3>
-    <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">We've expanded SafeSpot's MCP server with support for initiatives, projects, and more.</p>
-    <div class="text-[11px] font-mono text-neutral-600 mt-2 uppercase tracking-widest">Feb 4, 2025</div>
-  </div>
-  <div class="flex flex-col gap-5 border-t border-white/10 pt-6 group cursor-pointer relative top-0 hover:-translate-y-1 transition-transform">
-    <div class="w-2 h-2 rounded-full bg-neutral-600 relative before:absolute before:inset-0 before:-m-1 before:rounded-full before:border before:border-neutral-600 group-hover:bg-white group-hover:before:border-white transition-colors"></div>
-    <h3 class="text-[15px] font-medium text-white group-hover:text-blue-400 transition-colors">Time in status</h3>
-    <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">Time spent in individual statuses is now tracked and visible on issues.</p>
-    <div class="text-[11px] font-mono text-neutral-600 mt-2 uppercase tracking-widest">Jan 28, 2025</div>
-  </div>
-  <div class="flex flex-col gap-5 border-t border-white/10 pt-6 group cursor-pointer relative top-0 hover:-translate-y-1 transition-transform">
-    <div class="w-2 h-2 rounded-full bg-neutral-600 relative before:absolute before:inset-0 before:-m-1 before:rounded-full before:border before:border-neutral-600 group-hover:bg-white group-hover:before:border-white transition-colors"></div>
-    <h3 class="text-[15px] font-medium text-white group-hover:text-blue-400 transition-colors">Customizable SafeSpot Mobile navigation</h3>
-    <p class="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">Now you can customize SafeSpot Mobile to fit your daily workflow perfectly.</p>
-    <div class="text-[11px] font-mono text-neutral-600 mt-2 uppercase tracking-widest">Jan 21, 2025</div>
-  </div>
-        </div>
-        
-        <a href="#" class="flex items-center gap-3 text-sm font-medium text-neutral-300 hover:text-white transition-colors w-max">
-          <span>See all releases</span> <i data-lucide="arrow-right" class="w-4 h-4" ></i>
-        </a>
-      </section>
-
-      <!--  Testimonials  -->
-      <section class="w-full max-w-[1200px] mx-auto py-24 px-6 md:px-12 border-b border-white/[0.05]">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
-           <div class="bg-[#e5e5e5] text-[#111] rounded-[24px] p-10 md:p-14 flex flex-col justify-between min-h-[360px]">
-              <h3 class="text-2xl md:text-[32px] font-medium tracking-tight max-w-[400px] leading-[1.2]">"You just have to use it and you will see, you will just feel it."</h3>
-              
-              <div class="flex items-center gap-4 mt-12">
-                 <div class="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-black/5 shrink-0">
-                    <svg viewBox="0 0 24 24" fill="none" class="w-6 h-6"><path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="currentColor"/></svg>
-                 </div>
-                 <div>
-                   <div class="font-semibold text-[15px]">Gabriel Peal</div>
-                   <div class="text-[14px] text-neutral-600">OpenAI</div>
-                 </div>
-              </div>
-           </div>
-           
-           <div class="bg-[#e4fc4b] text-[#111] rounded-[24px] p-10 md:p-14 flex flex-col justify-between min-h-[360px]">
-              <h3 class="text-2xl md:text-[32px] font-medium tracking-tight max-w-[400px] leading-[1.2]">"Our speed is intense and SafeSpot helps us be action biased."</h3>
-              
-              <div class="flex items-center gap-4 mt-12">
-                 <div class="w-12 h-12 rounded-full bg-black/5 overflow-hidden flex items-center justify-center shrink-0">
-                    <i data-lucide="triangle" class="w-5 h-5 fill-current rotate-12" ></i>
-                 </div>
-                 <div>
-                   <div class="font-semibold text-[15px]">Nik Koblov</div>
-                   <div class="text-[14px] text-neutral-700">Head of Engineering, Ramp</div>
-                 </div>
-              </div>
-           </div>
-        </div>
-        
-        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-8 border-t border-white/10">
-           <p class="text-[14px] text-neutral-500">SafeSpot powers over <strong class="text-white font-medium">20,000</strong> product teams. From ambitious startups to major enterprises.</p>
-           <a href="#" class="text-[14px] font-medium text-neutral-300 hover:text-white flex items-center gap-2 shrink-0">
-              Customer stories <i data-lucide="arrow-right" class="w-4 h-4" ></i>
-           </a>
-        </div>
-      </section>
-
-      <!--  Bottom CTA  -->
-      <section class="w-full pt-40 pb-40 px-6 flex flex-col items-center justify-center text-center">
-        <h2 class="text-[44px] md:text-[72px] font-medium tracking-tight mb-12 max-w-[700px] leading-[1.05] text-white">Built for the future.<br/>Available today.</h2>
-        
-        <div class="flex items-center gap-5">
-           <button class="bg-white text-black px-7 py-3 rounded-full font-semibold text-sm hover:bg-neutral-200 transition-colors">Get started</button>
-           <button class="bg-white/5 border border-white/10 text-white px-7 py-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-colors">Contact sales</button>
-        </div>
-      </section>
-
       <!--  Footer  -->
-      <footer class="w-full border-t border-white/[0.05] bg-[#000000] text-sm pt-24 pb-12 px-6">
-        <div class="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-16 md:gap-32 justify-between">
-          <div class="flex flex-col gap-4 shrink-0">
-             <div class="flex gap-1 items-center justify-center">
-               <div class="w-5 h-5 rounded-full border-[3px] border-white relative before:absolute before:inset-0 before:m-auto before:w-2 before:h-2 before:bg-white before:rounded-full mix-blend-screen opacity-90 -ml-1"></div>
-             </div>
+      <footer class="w-full border-t border-white/[0.05] bg-[#000000] pt-16 pb-12 px-6">
+        <div class="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+          
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-center md:justify-start gap-2 mb-1">
+              <div class="w-5 h-5 rounded-full border-[3px] border-white relative before:absolute before:inset-0 before:m-auto before:w-2 before:h-2 before:bg-white before:rounded-full mix-blend-screen opacity-90 -ml-1"></div>
+              <span class="text-white font-medium text-lg tracking-tight">SafeSpot Toronto</span>
+            </div>
+            <p class="text-neutral-500 text-[14px]">Real-time heat risk mapping & cooling centre routing</p>
           </div>
           
-          <div class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-10 md:gap-6 text-[13px] font-medium">
-             <div class="flex flex-col gap-3.5">
-               <div class="text-white mb-2">Product</div>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Intake</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Plan</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Build</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Reviews</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Monitor</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Pricing</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Security</a>
-             </div>
-             
-             <div class="flex flex-col gap-3.5">
-               <div class="text-white mb-2">Features</div>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Asks</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Agents</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Customer Requests</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Insights</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Mobile</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Integrations</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Changelog</a>
-             </div>
-             
-             <div class="flex flex-col gap-3.5">
-               <div class="text-white mb-2">Company</div>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">About</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Customers</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Careers</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Blog</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Method</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Quality</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Brand</a>
-             </div>
-             
-             <div class="flex flex-col gap-3.5">
-               <div class="text-white mb-2">Resources</div>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Switch</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Download</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Documentation</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Developers</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Status</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Enterprise</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Startups</a>
-             </div>
-             
-             <div class="flex flex-col gap-3.5">
-               <div class="text-white mb-2">Connect</div>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Contact us</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">Community</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">X (Twitter)</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">GitHub</a>
-               <a href="#" class="text-neutral-500 hover:text-white transition-colors">YouTube</a>
-             </div>
+          <div class="text-neutral-500 text-[13px] md:text-right flex flex-col gap-1.5">
+             <p class="text-white/70">Built for Seneca Polytechnic Hackathon 2026</p>
+             <p>Theme 3: Community Energy, Equity and Sustainability</p>
           </div>
-        </div>
-        
-        <div class="max-w-[1200px] mx-auto mt-24 pt-8 border-t border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between text-neutral-600 text-[12px] font-medium gap-4">
-          <div class="flex items-center gap-6">
-             <a href="#" class="hover:text-white transition-colors">Privacy</a>
-             <a href="#" class="hover:text-white transition-colors">Terms</a>
-             <a href="#" class="hover:text-white transition-colors">DPA</a>
-          </div>
+          
         </div>
       </footer>
     </div>
@@ -734,7 +675,7 @@
     // Initialize actual Leaflet Map
     document.addEventListener("DOMContentLoaded", function() {
       if(document.getElementById('map') && typeof L !== 'undefined') {
-        const map = L.map('map', { zoomControl: false }).setView([43.7, -79.42], 13);
+        const map = L.map('map', { zoomControl: false }).setView([43.7, -79.42], 14);
         
         // Dark theme map tiles (CartoDB Dark Matter)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -749,21 +690,33 @@
         const LIBRARY_URL = "https://services6.arcgis.com/gEBDQzUF4BVGW25i/arcgis/rest/services/tpl_branch_general_information___4326/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson";
         const HEAT_URL = "https://services1.arcgis.com/jYHC0Oa2n7z2uKcM/arcgis/rest/services/Impervious_Surface_and_the_Urban_Heat_Island_Effect_in_Toronto_WFL1/FeatureServer/1/query?where=1%3D1&outFields=SurfTemp_Tess_MEAN&f=geojson&resultRecordCount=2000";
 
-        const makeIcon = (emoji) => L.divIcon({
-            html: `<div style="font-size:18px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.8))">${emoji}</div>`,
-            className: "",
-            iconSize: [22, 22],
-            iconAnchor: [11, 11],
-            popupAnchor: [0, -12]
-        });
+        const makeIcon = (emoji, type) => {
+            // 타입별로 배경색과 테두리색을 다르게 적용하여 유리 같은 느낌(Glassmorphism) 연출
+            const bg = type === 'cooling' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255, 255, 255, 0.15)';
+            const border = type === 'cooling' ? 'rgba(96, 165, 250, 0.5)' : 'rgba(255, 255, 255, 0.3)';
+            return L.divIcon({
+                html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${bg};border:1px solid ${border};box-shadow:0 4px 12px rgba(0,0,0,0.5);font-size:14px;backdrop-filter:blur(4px); cursor:pointer;">${emoji}</div>`,
+                className: "",
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+                popupAnchor: [0, -14]
+            });
+        };
 
         fetch(HEAT_URL).then(r=>r.json()).then(data => {
             L.geoJSON(data, {
                 style: function(feature) {
                     const temp = feature.properties.SurfTemp_Tess_MEAN || 20;
-                    const min = 20, max = 42;
-                    const opacity = Math.min(0.75, Math.max(0.05, (temp - min) / (max - min) * 0.75));
-                    return { fillColor: "#ef4444", fillOpacity: opacity, weight: 0, stroke: false };
+                    let color, opacity;
+                    // 노란색 -> 주황색 -> 빨간색 순으로 명확한 온도 구분
+                    if (temp >= 30) {
+                        color = "#dc2626"; opacity = 0.85; // 빨간색 (High Heat)
+                    } else if (temp >= 25) {
+                        color = "#f97316"; opacity = 0.65; // 주황색 (Moderate Heat)
+                    } else {
+                        color = "#facc15"; opacity = 0.45; // 노란색 (Low Heat)
+                    }
+                    return { fillColor: color, fillOpacity: opacity, weight: 0, stroke: false };
                 }
             }).addTo(map);
         }).catch(e => console.error("Heat data load failed", e));
@@ -771,7 +724,11 @@
         fetch(COOLING_URL).then(r=>r.json()).then(data => {
             L.geoJSON(data, {
                 pointToLayer: function(feature, latlng) {
-                    return L.marker(latlng, {icon: makeIcon("❄️")}).bindPopup(`<strong>${feature.properties.locationName || 'Cooling Centre'}</strong><br/>${feature.properties.address || ''}`);
+                    // 동일 좌표에 있을 때 겹침을 방지하기 위한 미세한 분산(Jitter) 처리
+                    const jLat = latlng.lat + (Math.random() - 0.5) * 0.0003;
+                    const jLng = latlng.lng + (Math.random() - 0.5) * 0.0003;
+                    return L.marker([jLat, jLng], {icon: makeIcon("❄️", "cooling")})
+                        .bindTooltip(`<strong>${feature.properties.locationName || 'Cooling Centre'}</strong><br/>${feature.properties.address || ''}`, {direction: 'top', offset: [0, -10]});
                 }
             }).addTo(map);
         }).catch(e => console.error("Cooling data load failed", e));
@@ -779,20 +736,200 @@
         fetch(LIBRARY_URL).then(r=>r.json()).then(data => {
             L.geoJSON(data, {
                 pointToLayer: function(feature, latlng) {
-                    return L.marker(latlng, {icon: makeIcon("📚")}).bindPopup(`<strong>${feature.properties.BranchName || 'Library'}</strong><br/>${feature.properties.Address || ''}`);
+                    // 동일 좌표에 있을 때 겹침을 방지하기 위한 미세한 분산(Jitter) 처리
+                    const jLat = latlng.lat + (Math.random() - 0.5) * 0.0003;
+                    const jLng = latlng.lng + (Math.random() - 0.5) * 0.0003;
+                    return L.marker([jLat, jLng], {icon: makeIcon("📚", "library"), zIndexOffset: 1000})
+                        .bindTooltip(`<strong>${feature.properties.BranchName || 'Library'}</strong><br/>${feature.properties.Address || ''}`, {direction: 'top', offset: [0, -10]});
                 }
             }).addTo(map);
         }).catch(e => console.error("Library data load failed", e));
         
         const userIcon = L.divIcon({
-            html: `<div class="relative flex items-center justify-center w-6 h-6"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-60"></span><div class="w-3.5 h-3.5 bg-orange-500 rounded-full border-[2px] border-black shadow-[0_0_10px_rgba(249,115,22,0.8)]"></div></div>`,
+            html: `<div class="relative flex items-center justify-center w-6 h-6"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60"></span><div class="w-3.5 h-3.5 bg-green-500 rounded-full border-[2px] border-black shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div></div>`,
             className: "",
             iconSize: [24, 24],
             iconAnchor: [12, 12]
         });
-        L.marker([43.7, -79.42], {icon: userIcon}).addTo(map).bindPopup("<b>You are here</b>");
+        L.marker([43.7, -79.42], {icon: userIcon}).addTo(map).bindTooltip("<b>You are here</b>", {direction: 'top', offset: [0, -10]});
+
+        // Add "Go to My Location" Control
+        const MyLocationControl = L.Control.extend({
+            options: { position: 'topright' },
+            onAdd: function (map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                container.innerHTML = `<button style="background-color: #161616; border: none; color: #fff; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#262626'" onmouseout="this.style.background='#161616'" title="Go to My Location">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="M12 20v2"/><path d="M2 12h2"/><path d="M20 12h2"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>`;
+                container.style.border = "1px solid rgba(255,255,255,0.1)";
+                container.style.overflow = "hidden";
+                container.style.borderRadius = "4px";
+                
+                // Prevent click events from propagating to the map
+                L.DomEvent.disableClickPropagation(container);
+                
+                container.onclick = function(e){
+                    e.preventDefault();
+                    map.flyTo([43.7, -79.42], 14, { duration: 1.2 });
+                };
+                return container;
+            }
+        });
+        map.addControl(new MyLocationControl());
       }
+
+      // -------------------------------------------------------------
+      // UI Interactions: Active Nav State & Back to Top
+      // -------------------------------------------------------------
+      const navLinks = document.querySelectorAll('nav a[href^="#"]');
+      const backToTopBtn = document.getElementById('backToTop');
+      
+      const sections = [];
+      navLinks.forEach(link => {
+        const targetId = link.getAttribute('href');
+        const targetEl = document.querySelector(targetId);
+        if (targetEl) sections.push(targetEl);
+      });
+
+      // 1. Back to Top Button Visibility
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+          backToTopBtn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+          backToTopBtn.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        } else {
+          backToTopBtn.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+          backToTopBtn.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        }
+      });
+
+      // 2. Active Menu Highlight using IntersectionObserver
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const current = entry.target.getAttribute('id');
+            navLinks.forEach(link => {
+              link.classList.remove('text-white');
+              if (link.getAttribute('href') === `#${current}`) {
+                link.classList.add('text-white');
+              }
+            });
+          }
+        });
+      }, { threshold: 0.5 });
+
+      sections.forEach(section => {
+        observer.observe(section);
+      });
+
+      backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      
+      // Re-initialize icons just in case
+      lucide.createIcons();
+
+      // Scrollytelling for How It Works
+      const hwSection = document.getElementById('how-it-works-simple');
+      const hwItems = document.querySelectorAll('.hw-scroll-item');
+      if(hwSection && hwItems.length > 0) {
+        window.addEventListener('scroll', () => {
+          const rect = hwSection.getBoundingClientRect();
+          const totalScrollHeight = hwSection.offsetHeight - window.innerHeight;
+          
+          let scrollProgress = 0;
+          if (rect.top <= 0) {
+            scrollProgress = Math.abs(rect.top) / totalScrollHeight;
+          }
+          
+          scrollProgress = Math.max(0, Math.min(1, scrollProgress));
+          
+          let activeIndex = Math.floor(scrollProgress * hwItems.length);
+          if (activeIndex >= hwItems.length) activeIndex = hwItems.length - 1;
+
+          hwItems.forEach((item, index) => {
+            if (index <= activeIndex) {
+              item.classList.remove('opacity-0', 'translate-y-8', 'pointer-events-none');
+              item.classList.add('opacity-100', 'translate-y-0');
+            } else {
+              item.classList.remove('opacity-100', 'translate-y-0');
+              item.classList.add('opacity-0', 'translate-y-8', 'pointer-events-none');
+            }
+          });
+        });
+      }
+
+      // -------------------------------------------------------------
+      // Spotlight Hover Effect
+      // -------------------------------------------------------------
+      document.querySelectorAll('.spotlight-card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          card.style.setProperty('--x', `${x}px`);
+          card.style.setProperty('--y', `${y}px`);
+        });
+      });
+
     });
+
+    // -------------------------------------------------------------
+    // Geolocation: auto on load + click to refresh
+    // -------------------------------------------------------------
+    function requestUserLocation(forceRefresh) {
+      const textEl = document.getElementById('location-text');
+      if (!textEl) return;
+
+      // Check localStorage cache first (unless forced)
+      if (!forceRefresh) {
+        const cached = localStorage.getItem('safespot_location');
+        if (cached) {
+          textEl.textContent = cached;
+          return;
+        }
+      }
+
+      textEl.textContent = 'Locating...';
+
+      if (!navigator.geolocation) {
+        textEl.textContent = 'Toronto, ON';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`)
+            .then(r => r.json())
+            .then(data => {
+              const addr = data.address || {};
+              const city = addr.city || addr.town || addr.village || addr.county || 'Unknown';
+              const state = addr.state_code || addr.state || '';
+              const label = state ? `${city}, ${state.toUpperCase().slice(0,2)}` : city;
+              textEl.textContent = label;
+              localStorage.setItem('safespot_location', label);
+            })
+            .catch(() => {
+              const label = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+              textEl.textContent = label;
+              localStorage.setItem('safespot_location', label);
+            });
+        },
+        () => {
+          textEl.textContent = 'Toronto, ON';
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
+    // Auto-load cached or request fresh
+    requestUserLocation(false);
   </script>
+
+  <!-- Floating Back to Top Button -->
+  <button id="backToTop" class="fixed bottom-8 right-8 z-[100] p-4 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full text-white backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)] translate-y-4" aria-label="Back to top">
+    <i data-lucide="arrow-up" class="w-6 h-6"></i>
+  </button>
+
 </body>
 </html>

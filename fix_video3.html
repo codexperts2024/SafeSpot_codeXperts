@@ -1,0 +1,47 @@
+      <!-- GitHub Integration -->
+      <section id="open-source" class="w-full relative py-32 border-b border-white/[0.05] scroll-mt-24 overflow-hidden">
+        
+        <!-- Video Background with Mask -->
+        <div class="absolute inset-0 w-full h-full z-0 flex justify-center items-center pointer-events-none">
+          <video autoplay loop muted playsinline disablepictureinpicture disableremoteplayback class="min-w-full min-h-full object-cover">
+            <source src="https://static.linear.app/assets/hero/INTAKE-v4.output.h264.crf18.mp4" type="video/mp4">
+          </video>
+          <!-- Gradient Masks to softly darken the background for readability -->
+          <div class="absolute inset-0 bg-[#000000]/50"></div>
+          <div class="absolute inset-0 bg-gradient-to-b from-[#000000] via-transparent to-[#000000]"></div>
+          <div class="absolute inset-0 bg-gradient-to-r from-[#000000] via-transparent to-[#000000]"></div>
+        </div>
+
+        <!-- Content Container -->
+        <div class="relative z-10 w-full max-w-[1200px] mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center gap-12 md:gap-16">
+          <div class="flex-1">
+            <h2 class="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-6 drop-shadow-lg">Open Source & Ready</h2>
+            <p class="text-[17px] text-neutral-300 leading-relaxed mb-8 drop-shadow-md font-medium">
+              Explore the complete SafeSpot architecture. From Raspberry Pi sensor scripts to the FastAPI backend and Next.js frontend—everything is available for review and contribution.
+            </p>
+            <a href="https://github.com/codexperts2024/SafeSpot_codeXperts" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-white bg-black/40 hover:bg-black/60 border border-white/20 px-6 py-3 rounded-full text-sm font-medium transition-colors backdrop-blur-md shadow-lg">
+              <i data-lucide="github" class="w-4 h-4"></i>
+              View on GitHub
+              <span class="text-neutral-400 ml-1">?</span>
+            </a>
+          </div>
+          <div class="flex-1 w-full relative">
+            <div class="relative w-full max-w-[500px] ml-auto rounded-xl border border-white/10 bg-[#0d0d0d]/70 backdrop-blur-xl shadow-[0_0_50px_rgba(255,255,255,0.05)] overflow-hidden group">
+              <div class="absolute inset-0 bg-gradient-to-tr from-green-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+              <div class="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-white/[0.02]">
+                <div class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
+                <div class="ml-2 text-[11px] text-neutral-500 font-mono tracking-wider">main.py</div>
+              </div>
+              <div class="p-6 text-[13px] font-mono leading-relaxed text-neutral-300 overflow-x-auto whitespace-pre">
+<div class="flex"><span class="text-neutral-600 mr-4 select-none">1</span><span class="text-pink-400">@app</span><span class="text-white">.post(</span><span class="text-green-400">"/api/sensor-data"</span><span class="text-white">)</span></div>
+<div class="flex"><span class="text-neutral-600 mr-4 select-none">2</span><span class="text-purple-400">async def</span> <span class="text-blue-400">receive_data</span><span class="text-white">(data: SensorData):</span></div>
+<div class="flex bg-white/[0.04] -mx-6 px-6 border-l-2 border-green-400"><span class="text-neutral-600 mr-4 select-none">3</span><span>    </span><span class="text-pink-400">if</span> <span class="text-white">data.temperature > </span><span class="text-orange-400">35.0</span><span class="text-white">:</span></div>
+<div class="flex bg-white/[0.04] -mx-6 px-6 border-l-2 border-green-400"><span class="text-neutral-600 mr-4 select-none">4</span><span>        </span><span class="text-blue-400">trigger_alert</span><span class="text-white">(</span><span class="text-green-400">"Extreme Heat Warning"</span><span class="text-white">)</span></div>
+<div class="flex"><span class="text-neutral-600 mr-4 select-none">5</span><span>    </span><span class="text-purple-400">return</span> <span class="text-white">{</span><span class="text-green-400">"status"</span><span class="text-white">: </span><span class="text-green-400">"success"</span><span class="text-white">}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>

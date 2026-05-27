@@ -1,145 +1,1283 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import NearestShelter from "@/components/NearestShelter";
-import WeatherCard from "@/components/WeatherCard";
-import SensorCard from "@/components/SensorCard";
+
+'use client';
+import { useEffect, useState, useRef } from 'react';
+import Script from 'next/script';
+import AlertBanner from '@/components/AlertBanner';
+
+function getAlertLevel(temp) {
+  if (temp === null) return "Safe";
+  if (temp >= 40) return "Extreme";
+  if (temp >= 35) return "Danger";
+  if (temp >= 30) return "Caution";
+  return "Safe";
+}
+
+
+let activeAudioCtx = null;
+
+function playAlarmSound(level) {
+  try {
+    if (activeAudioCtx) {
+      try {
+        activeAudioCtx.close().catch(() => {});
+      } catch (err) {}
+      activeAudioCtx = null;
+    }
+    if (level === "Safe" || !level) {
+      return;
+    }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    activeAudioCtx = ctx;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sawtooth";
+
+    if (level === "Extreme") {
+      // Fast wailing siren
+      gain.gain.setValueAtTime(0.25, t);
+      for (let i = 0; i < 4; i++) {
+        osc.frequency.setValueAtTime(600, t + i * 0.5);
+        osc.frequency.linearRampToValueAtTime(1400, t + i * 0.5 + 0.25);
+        osc.frequency.linearRampToValueAtTime(600, t + i * 0.5 + 0.5);
+      }
+      gain.gain.setValueAtTime(0.25, t + 1.9);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+      osc.start(t);
+      osc.stop(t + 2.0);
+    } else if (level === "Danger") {
+      // Slower wailing siren
+      gain.gain.setValueAtTime(0.25, t);
+      for (let i = 0; i < 2; i++) {
+        osc.frequency.setValueAtTime(500, t + i * 0.8);
+        osc.frequency.linearRampToValueAtTime(1100, t + i * 0.8 + 0.4);
+        osc.frequency.linearRampToValueAtTime(500, t + i * 0.8 + 0.8);
+      }
+      gain.gain.setValueAtTime(0.25, t + 1.5);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.6);
+      osc.start(t);
+      osc.stop(t + 1.6);
+    } else if (level === "Caution") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, t);
+      const beepDur = 0.12;
+      const gap = 0.15;
+      const groupGap = 0.35;
+      for (let i = 0; i < 4; i++) {
+        const s = t + i * (beepDur + gap);
+        gain.gain.setValueAtTime(0.45, s);
+        gain.gain.setValueAtTime(0.45, s + beepDur);
+        gain.gain.setValueAtTime(0, s + beepDur + 0.01);
+      }
+      const offset = 4 * (beepDur + gap) + groupGap;
+      for (let i = 0; i < 4; i++) {
+        const s = t + offset + i * (beepDur + gap);
+        gain.gain.setValueAtTime(0.45, s);
+        gain.gain.setValueAtTime(0.45, s + beepDur);
+        gain.gain.setValueAtTime(0, s + beepDur + 0.01);
+      }
+      gain.gain.setValueAtTime(0, t);
+      osc.start(t);
+      osc.stop(t + offset + 4 * (beepDur + gap));
+    }
+  } catch (e) {
+    console.log("Audio play blocked:", e);
+  }
+}
+
+function getPillStyles(temp) {
+  if (temp === null) {
+    return {
+      bg: "bg-green-500/15 text-green-400 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.15)]",
+      ping: "bg-green-400",
+      dot: "bg-green-500",
+      text: "text-green-300/80"
+    };
+  }
+  if (temp >= 40) {
+    return {
+      bg: "bg-red-500/15 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]",
+      ping: "bg-red-400",
+      dot: "bg-red-500",
+      text: "text-red-300/80"
+    };
+  }
+  if (temp >= 35) {
+    return {
+      bg: "bg-orange-500/15 text-orange-400 border border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.15)]",
+      ping: "bg-orange-400",
+      dot: "bg-orange-500",
+      text: "text-orange-300/80"
+    };
+  }
+  if (temp >= 30) {
+    return {
+      bg: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.15)]",
+      ping: "bg-yellow-400",
+      dot: "bg-yellow-500",
+      text: "text-yellow-300/80"
+    };
+  }
+  return {
+    bg: "bg-green-500/15 text-green-400 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.15)]",
+    ping: "bg-green-400",
+    dot: "bg-green-500",
+    text: "text-green-300/80"
+  };
+}
 
 export default function Home() {
+  const [locationText, setLocationText] = useState('Detect location');
+
+  const [sensorTemp, setSensorTemp] = useState(20.0);
+  const [simulatedTemp, setSimulatedTemp] = useState(null);
+  const activeTemp = simulatedTemp !== null ? simulatedTemp : sensorTemp;
+  const fetchSensorRef = useRef(null);
+  const [weatherTemp, setWeatherTemp] = useState(null);
+  const [weatherDesc, setWeatherDesc] = useState(null);
+  const [weatherLoc, setWeatherLoc] = useState(null);
+  const mapRef = useRef(null);
+  const [userPos, setUserPos] = useState(null);
+  const [sheltersList, setSheltersList] = useState([]);
+  const [nearestShelter, setNearestShelter] = useState(null);
+  const [nearestCooling, setNearestCooling] = useState(null);
+  const [nearestLibrary, setNearestLibrary] = useState(null);
+
+  const getBannerAlert = () => {
+    if (activeTemp === null) return null;
+    if (activeTemp >= 40) {
+      return { level: "extreme", message: "Extreme danger — Avoid outdoor activities!" };
+    }
+    if (activeTemp >= 36) {
+      return { level: "danger", message: "Extreme Heat Warning — Heatstroke risk is critical!" };
+    }
+    if (activeTemp >= 30) {
+      return { level: "caution", message: "Stay hydrated and seek shade" };
+    }
+    return null;
+  };
+
+  const prevLevel = useRef(null);
+  useEffect(() => {
+    const level = getAlertLevel(activeTemp);
+    if (level === "Safe" || !level) {
+      prevLevel.current = level;
+      playAlarmSound("Safe");
+      return;
+    }
+    if (level === prevLevel.current) return;
+    prevLevel.current = level;
+    playAlarmSound(level);
+  }, [activeTemp]);
+
+  // Poll Sensor Data
+  useEffect(() => {
+    async function fetchSensor() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/sensor-latest`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.temperature != null) setSensorTemp(data.temperature);
+      } catch {}
+    }
+    fetchSensorRef.current = fetchSensor;
+    fetchSensor();
+    const interval = setInterval(fetchSensor, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (mapRef.current && userPos) {
+      mapRef.current.setView([userPos.lat, userPos.lng], 14);
+      // Optional: Add a marker for user
+      if (typeof L !== 'undefined') {
+        L.marker([userPos.lat, userPos.lng]).addTo(mapRef.current)
+          .bindPopup("You are here").openPopup();
+      }
+    }
+  }, [userPos]);
+
+
+  // Poll Weather Data
+  useEffect(() => {
+    async function fetchWeather() {
+      try {
+        const key = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
+        if (!key) return;
+        const URL = `https://api.openweathermap.org/data/2.5/weather?q=Toronto,CA&appid=${key}&units=metric`;
+        const res = await fetch(URL);
+        const data = await res.json();
+        if (data.main?.temp != null) { setWeatherTemp(data.main.temp); setWeatherDesc(data.weather?.[0]?.description || ""); setWeatherLoc(data.name || ""); }
+      } catch {}
+    }
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Compute Nearest Shelter
+  useEffect(() => {
+    if (!userPos || sheltersList.length === 0) return;
+    
+    function getDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    const withDist = sheltersList.map(s => ({
+      ...s,
+      distance: getDistance(userPos.lat, userPos.lng, s.lat, s.lng)
+    }));
+    const cooling = withDist.filter(s => s.type === 'cooling').sort((a, b) => a.distance - b.distance);
+    const libraries = withDist.filter(s => s.type === 'library').sort((a, b) => a.distance - b.distance);
+    
+    if (cooling.length > 0) setNearestCooling(cooling[0]);
+    if (libraries.length > 0) setNearestLibrary(libraries[0]);
+    
+    const overall = [...withDist].sort((a, b) => a.distance - b.distance);
+    setNearestShelter(overall[0]);
+  }, [userPos, sheltersList]);
+
+
+  useEffect(() => {
+    // Lucide icons
+    if (typeof window !== 'undefined' && window.lucide) {
+      window.lucide.createIcons();
+    }
+    
+    // Extracted DOMContentLoaded scripts:
+
+      if(document.getElementById('map') && typeof L !== 'undefined') {
+        const cached = localStorage.getItem('safespot_coords');
+        let initialLat = 43.7, initialLng = -79.42;
+        if (cached) {
+            try {
+                const coords = JSON.parse(cached);
+                if (coords && !isNaN(coords.lat) && !isNaN(coords.lng)) {
+                    initialLat = coords.lat;
+                    initialLng = coords.lng;
+                }
+            } catch(e) {}
+        }
+
+        const map = L.map('map', { zoomControl: false }).setView([initialLat, initialLng], 14);
+        mapRef.current = map;
+        
+        // Dark theme map tiles (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        const COOLING_URL = "https://services6.arcgis.com/gEBDQzUF4BVGW25i/arcgis/rest/services/Air_Conditioned_and_Cool_Spaces_v2/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson";
+        const LIBRARY_URL = "https://services6.arcgis.com/gEBDQzUF4BVGW25i/arcgis/rest/services/tpl_branch_general_information___4326/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson";
+        const HEAT_URL = "https://services1.arcgis.com/jYHC0Oa2n7z2uKcM/arcgis/rest/services/Impervious_Surface_and_the_Urban_Heat_Island_Effect_in_Toronto_WFL1/FeatureServer/1/query?where=1%3D1&outFields=SurfTemp_Tess_MEAN&f=geojson&resultRecordCount=2000";
+
+        const makeIcon = (emoji, type) => {
+            // 타입별로 배경색과 테두리색을 다르게 적용하여 유리 같은 느낌(Glassmorphism) 연출
+            const bg = type === 'cooling' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255, 255, 255, 0.15)';
+            const border = type === 'cooling' ? 'rgba(96, 165, 250, 0.5)' : 'rgba(255, 255, 255, 0.3)';
+            return L.divIcon({
+                html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${bg};border:1px solid ${border};box-shadow:0 4px 12px rgba(0,0,0,0.5);font-size:14px;backdrop-filter:blur(4px); cursor:pointer;">${emoji}</div>`,
+                className: "",
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+                popupAnchor: [0, -14]
+            });
+        };
+
+        fetch(HEAT_URL).then(r=>r.json()).then(data => {
+            L.geoJSON(data, {
+                style: function(feature) {
+                    const temp = feature.properties.SurfTemp_Tess_MEAN || 20;
+                    let color, opacity;
+                    // 노란색 -> 주황색 -> 빨간색 순으로 명확한 온도 구분
+                    if (temp >= 30) {
+                        color = "#dc2626"; opacity = 0.85; // 빨간색 (High Heat)
+                    } else if (temp >= 25) {
+                        color = "#f97316"; opacity = 0.65; // 주황색 (Moderate Heat)
+                    } else {
+                        color = "#facc15"; opacity = 0.45; // 노란색 (Low Heat)
+                    }
+                    return { fillColor: color, fillOpacity: opacity, weight: 0, stroke: false };
+                }
+            }).addTo(map);
+        }).catch(e => console.error("Heat data load failed", e));
+
+        fetch(COOLING_URL).then(r=>r.json()).then(data => {
+            L.geoJSON(data, {
+                pointToLayer: function(feature, latlng) {
+                    // 동일 좌표에 있을 때 겹침을 방지하기 위한 미세한 분산(Jitter) 처리
+                    const jLat = latlng.lat + (Math.random() - 0.5) * 0.0003;
+                    const jLng = latlng.lng + (Math.random() - 0.5) * 0.0003;
+                    return L.marker([jLat, jLng], {icon: makeIcon("❄️", "cooling")})
+                        .bindTooltip(`<strong>${feature.properties.locationName || 'Cooling Centre'}</strong><br/>${feature.properties.address || ''}`, {direction: 'top', offset: [0, -10]});
+                }
+            }).addTo(map);
+        }).catch(e => console.error("Cooling data load failed", e));
+
+        fetch(LIBRARY_URL).then(r=>r.json()).then(data => {
+            L.geoJSON(data, {
+                pointToLayer: function(feature, latlng) {
+                    // 동일 좌표에 있을 때 겹침을 방지하기 위한 미세한 분산(Jitter) 처리
+                    const jLat = latlng.lat + (Math.random() - 0.5) * 0.0003;
+                    const jLng = latlng.lng + (Math.random() - 0.5) * 0.0003;
+                    return L.marker([jLat, jLng], {icon: makeIcon("📚", "library"), zIndexOffset: 1000})
+                        .bindTooltip(`<strong>${feature.properties.BranchName || 'Library'}</strong><br/>${feature.properties.Address || ''}`, {direction: 'top', offset: [0, -10]});
+                }
+            }).addTo(map);
+        }).catch(e => console.error("Library data load failed", e));
+        
+        const userIcon = L.divIcon({
+            html: `<div class="relative flex items-center justify-center w-6 h-6"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60"></span><div class="w-3.5 h-3.5 bg-green-500 rounded-full border-[2px] border-black shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div></div>`,
+            className: "",
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+        const userMarker = L.marker([initialLat, initialLng], {icon: userIcon}).addTo(map).bindTooltip("<b>You are here</b>", {direction: 'top', offset: [0, -10]});
+
+        window.addEventListener('safespot-gps-updated', (e) => {
+            const { lat, lng } = e.detail;
+            userMarker.setLatLng([lat, lng]);
+            map.flyTo([lat, lng], 14, { duration: 1.2 });
+        });
+
+        // Add "Go to My Location" Control
+        const MyLocationControl = L.Control.extend({
+            options: { position: 'topright' },
+            onAdd: function (map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                container.innerHTML = `<button style="background-color: #161616; border: none; color: #fff; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#262626'" onmouseout="this.style.background='#161616'" title="Go to My Location">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="M12 20v2"/><path d="M2 12h2"/><path d="M20 12h2"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>`;
+                container.style.border = "1px solid rgba(255,255,255,0.1)";
+                container.style.overflow = "hidden";
+                container.style.borderRadius = "4px";
+                
+                // Prevent click events from propagating to the map
+                L.DomEvent.disableClickPropagation(container);
+                
+                container.onclick = function(e){
+                    e.preventDefault();
+                    const latlng = userMarker.getLatLng();
+                    map.flyTo([latlng.lat, latlng.lng], 14, { duration: 1.2 });
+                };
+                return container;
+            }
+        });
+        map.addControl(new MyLocationControl());
+      }
+
+      // -------------------------------------------------------------
+      // UI Interactions: Active Nav State & Back to Top
+      // -------------------------------------------------------------
+      const navLinks = document.querySelectorAll('nav a[href^="#"]');
+      const backToTopBtn = document.getElementById('backToTop');
+      
+      const sections = [];
+      navLinks.forEach(link => {
+        const targetId = link.getAttribute('href');
+        const targetEl = document.querySelector(targetId);
+        if (targetEl) sections.push(targetEl);
+      });
+
+      // 1. Back to Top Button Visibility
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+          backToTopBtn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+          backToTopBtn.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        } else {
+          backToTopBtn.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+          backToTopBtn.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        }
+      });
+
+      // 2. Active Menu Highlight using IntersectionObserver
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const current = entry.target.getAttribute('id');
+            navLinks.forEach(link => {
+              link.classList.remove('text-white');
+              if (link.getAttribute('href') === `#${current}`) {
+                link.classList.add('text-white');
+              }
+            });
+          }
+        });
+      }, { threshold: 0.5 });
+
+      sections.forEach(section => {
+        observer.observe(section);
+      });
+
+      backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      
+      // Re-initialize icons just in case
+      if (typeof window !== 'undefined' && window.lucide) {
+        window.lucide.createIcons();
+      }
+
+      // Scrollytelling for How It Works
+      const hwSection = document.getElementById('how-it-works-simple');
+      const hwItems = document.querySelectorAll('.hw-scroll-item');
+      if(hwSection && hwItems.length > 0) {
+        window.addEventListener('scroll', () => {
+          const rect = hwSection.getBoundingClientRect();
+          const totalScrollHeight = hwSection.offsetHeight - window.innerHeight;
+          
+          let scrollProgress = 0;
+          if (rect.top <= 0) {
+            scrollProgress = Math.abs(rect.top) / totalScrollHeight;
+          }
+          
+          scrollProgress = Math.max(0, Math.min(1, scrollProgress));
+          
+          let activeIndex = Math.floor(scrollProgress * hwItems.length);
+          if (activeIndex >= hwItems.length) activeIndex = hwItems.length - 1;
+
+          hwItems.forEach((item, index) => {
+            if (index <= activeIndex) {
+              item.classList.remove('opacity-0', 'translate-y-8', 'pointer-events-none');
+              item.classList.add('opacity-100', 'translate-y-0');
+            } else {
+              item.classList.remove('opacity-100', 'translate-y-0');
+              item.classList.add('opacity-0', 'translate-y-8', 'pointer-events-none');
+            }
+          });
+        });
+      }
+
+      // -------------------------------------------------------------
+      // Spotlight Hover Effect
+      // -------------------------------------------------------------
+      document.querySelectorAll('.spotlight-card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          card.style.setProperty('--x', `${x}px`);
+          card.style.setProperty('--y', `${y}px`);
+        });
+      });
+
+    
+  }, []);
+
+  
+  useEffect(() => {
+    async function loadShelters() {
+      try {
+        const getCoords = (f) => {
+          const c = f.geometry?.coordinates;
+          if (!c) return null;
+          if (Array.isArray(c[0])) return { lng: c[0][0], lat: c[0][1] };
+          return { lng: c[0], lat: c[1] };
+        };
+
+        const r1 = await fetch("https://services6.arcgis.com/gEBDQzUF4BVGW25i/arcgis/rest/services/Air_Conditioned_and_Cool_Spaces_v2/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson");
+        const d1 = await r1.json();
+        const cooling = d1.features.map(f => {
+          const coords = getCoords(f);
+          return {
+            lat: coords ? coords.lat : null,
+            lng: coords ? coords.lng : null,
+            name: f.properties.LocationName || f.properties.locationName || f.properties.NAME || 'Cooling Center',
+            type: 'cooling'
+          };
+        }).filter(s => s.lat !== null && s.lng !== null);
+
+        const r2 = await fetch("https://services6.arcgis.com/gEBDQzUF4BVGW25i/arcgis/rest/services/tpl_branch_general_information___4326/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson");
+        const d2 = await r2.json();
+        const libs = d2.features.map(f => {
+          const coords = getCoords(f);
+          return {
+            lat: coords ? coords.lat : null,
+            lng: coords ? coords.lng : null,
+            name: f.properties.BranchName || 'Library',
+            type: 'library'
+          };
+        }).filter(s => s.lat !== null && s.lng !== null);
+
+        setSheltersList([...cooling, ...libs]);
+      } catch(e) {}
+    }
+    loadShelters();
+  }, []);
+
+  const requestUserLocation = (forceRefresh) => {
+      setLocationText('Locating...');
+
+      if (!forceRefresh) {
+        const cachedCoords = localStorage.getItem('safespot_coords');
+        const cachedLoc = localStorage.getItem('safespot_location');
+        if (cachedCoords && cachedLoc) {
+          try {
+            setUserPos(JSON.parse(cachedCoords));
+            setLocationText(cachedLoc);
+            return;
+          } catch(e) {}
+        }
+      }
+
+      if (!navigator.geolocation) {
+        setLocationText('Detect location');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const coords = { lat: latitude, lng: longitude };
+          setUserPos(coords);
+          localStorage.setItem('safespot_coords', JSON.stringify(coords));
+          window.dispatchEvent(new CustomEvent("safespot-gps-updated", { detail: coords }));
+          
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`)
+            .then(res => res.json())
+            .then(data => {
+              const address = data.address || {};
+              const city = address.city || address.town || address.village || address.suburb || '';
+              const state = address.state || '';
+              const label = city && state ? `${city}, ${state}` : `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+              setLocationText(label);
+              localStorage.setItem('safespot_location', label);
+            })
+            .catch(() => {
+              const label = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+              setLocationText(label);
+              localStorage.setItem('safespot_location', label);
+            });
+        },
+        () => {
+          setLocationText('Detect location');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+  };
+
+  useEffect(() => {
+    requestUserLocation(false);
+  }, []);
+
   return (
     <>
-      <Navbar />
+      <Script src="https://unpkg.com/lucide@latest" strategy="beforeInteractive" />
+      <Script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" strategy="beforeInteractive" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <AlertBanner alert={getBannerAlert()} />
 
-      <main>
-        {/* ── SECTION 1: USER STORY ── */}
-        <section id="story" className="min-h-screen flex flex-col justify-center items-center px-8 py-32 text-center">
-          <p className="text-sm uppercase tracking-widest text-orange-400 mb-4">Why SafeSpot?</p>
-          <h1 className="text-5xl font-bold mb-8 leading-tight max-w-3xl">
-            In 2021, a heat dome killed 570 people in British Columbia.
-          </h1>
-          <p className="text-gray-300 max-w-2xl text-xl mb-6">
-            Many victims lived near cooling centres — but had no way of knowing.
-            If they had received a real-time alert and been guided to the nearest safe space,
-            more lives could have been saved.
-          </p>
-          <p className="text-orange-400 text-lg font-medium mb-6">
-            SafeSpot detects extreme heat in real time and routes you to the nearest cooling centre via GPS.
-          </p>
-          <p className="text-xs text-gray-600">
-            Source:{" "}
-            <a
-              href="https://www.cbc.ca/news/canada/british-columbia/bc-heat-dome-sudden-deaths-570-1.6122316"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-gray-400 transition-colors"
-            >
-              CBC News — B.C. heat dome: Death toll rises to 570 (July 27, 2021)
+      
+
+
+      {/*   Floating Download Actions for HTML Version   */}
+      <div className="min-h-screen flex flex-col items-center bg-[#000000] w-full text-[#f2f2f2] font-sans selection:bg-neutral-800 overflow-x-clip">
+      
+      {/*   Navigation   */}
+      <header className="w-full sticky top-0 z-50 bg-[#000000]/80 backdrop-blur-md border-b border-white/[0.05]">
+        <div className="w-full flex items-center justify-between px-6 py-4 max-w-[1200px] mx-auto">
+          <a href="#" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
+            {/*   SafeSpot Logo mockup   */}
+            <div className="flex gap-1 items-center justify-center">
+              <div className="w-5 h-5 rounded-full border-[3px] border-white relative before:absolute before:inset-0 before:m-auto before:w-2 before:h-2 before:bg-white before:rounded-full mix-blend-screen opacity-90 -ml-1"></div>
+            </div>
+            <span className="font-semibold text-[17px] tracking-tight">SafeSpot</span>
+          </a>
+        
+        <div className="flex items-center gap-3">
+          <nav className="hidden md:flex items-center gap-7 text-[13px] text-neutral-400 font-medium">
+            <a href="#story" className="hover:text-white transition-colors">Why SafeSpot</a>
+            <a href="#how-it-works-simple" className="hover:text-white transition-colors">How It Works</a>
+            <a href="#dashboard" className="hover:text-white transition-colors">Live Map</a>
+            <a href="#open-source" className="hover:text-white transition-colors">Open Source</a>
+            <a href="#team" className="hover:text-white transition-colors">Team</a>
+
+          </nav>
+
+          <div className="Header_navDivider__Jexuv hide-tablet w-[1px] h-4 bg-white/20 mx-1"></div>
+  
+          <div className="hidden md:flex items-center gap-3 text-[13px] font-medium">
+            {(() => {
+              const styles = getPillStyles(activeTemp);
+              return (
+                <a href="#dashboard" className={`${styles.bg} px-3.5 py-1.5 rounded-full hover:opacity-90 transition-all active:scale-95 flex items-center gap-2`}>
+                  <span className="relative flex h-2 w-2">
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${styles.ping} opacity-75`}></span>
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${styles.dot}`}></span>
+                  </span>
+                  <span className="font-semibold">{getAlertLevel(activeTemp)}</span>
+                  <span className={`${styles.text} font-mono`}>{activeTemp !== null ? activeTemp.toFixed(1) : "--"}°C</span>
+                </a>
+              );
+            })()}
+            <button id="location-pill" onClick={() => requestUserLocation(true)} className="flex items-center gap-1.5 text-neutral-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer">
+              <i data-lucide="map-pin" className="w-3 h-3 text-green-400"></i>
+              <span id="location-text" className="text-neutral-300 text-[12px]">{locationText}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      </header>
+
+      {/*   Hero Section   */}
+      <section id="story" className="w-full relative overflow-hidden scroll-mt-24">
+        {/*  Background Gradient Layer  */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 [background-image:radial-gradient(circle_at_20%_20%,rgba(255,79,2,0.3)_0%,rgba(255,79,2,0)_50%),radial-gradient(circle_at_80%_80%,rgba(0,173,189,0.28)_0%,rgba(0,173,189,0)_50%),linear-gradient(135deg,rgba(0,0,0,0.96)_0%,rgba(255,79,2,0.18)_40%,rgba(0,0,0,0.9)_50%,rgba(0,173,189,0.18)_60%,rgba(0,0,0,0.95)_100%)] [background-position:0%_0%,100%_100%,0%_50%] [background-size:180%_180%,180%_180%,250%_250%] before:absolute before:left-[-5%] before:top-[-20%] before:h-[600px] before:w-[600px] before:rounded-full before:bg-[radial-gradient(circle,rgba(255,79,2,0.25)_0%,transparent_65%)] before:content-[''] before:[filter:blur(4px)] after:absolute after:bottom-[-15%] after:right-[-5%] after:h-[600px] after:w-[600px] after:rounded-full after:bg-[radial-gradient(circle,rgba(0,173,189,0.25)_0%,transparent_65%)] after:content-[''] after:[filter:blur(3px)] motion-safe:animate-[hero-gradient-flow_20s_ease-in-out_infinite] motion-safe:before:animate-[hero-glow-drift_12s_ease-in-out_infinite] motion-safe:after:animate-[hero-glow-drift-reverse_14s_ease-in-out_infinite] will-change-[background-position]"></div>
+        
+        {/*  Content Container  */}
+        <div className="relative z-10 w-full flex flex-col items-start py-32 px-6 text-left max-w-[1200px] mx-auto border-b border-white/[0.05]">
+          <p className="text-sm uppercase tracking-widest text-orange-400 mb-6 font-semibold">Why SafeSpot?</p>
+        <h1 className="text-4xl md:text-[56px] font-medium tracking-tight max-w-[900px] leading-[1.15] mb-8 text-white text-left">
+          <span className="inline-block opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]">In 2021, a heat dome killed</span><br/>
+          <span className="inline-block opacity-0 animate-[fade-up_0.8s_ease-out_0.4s_forwards]">570 people in British Columbia.</span>
+        </h1>
+        
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between w-full mt-4 mb-16 gap-8 md:gap-0">
+          <div className="flex flex-col gap-4 text-left max-w-[600px]">
+             <p className="text-lg md:text-xl text-neutral-400 leading-relaxed">
+               Many victims lived near cooling centres — but had no way of knowing. If they had received a real-time alert and been guided to the nearest safe space, more lives could have been saved.
+             </p>
+             <p className="text-lg font-medium text-orange-400 leading-relaxed">
+               SafeSpot detects extreme heat in real time and routes you to the nearest cooling centre via GPS.
+             </p>
+          </div>
+          
+          <div className="flex flex-col gap-3 shrink-0 md:mb-1">
+            <a href="https://www.cbc.ca/news/canada/british-columbia/bc-heat-dome-sudden-deaths-570-1.6122316" target="_blank" className="flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 transition-colors group">
+              <span className="text-xs font-semibold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full w-[60px] text-center">CBC</span>
+              <span className="text-neutral-300">B.C. Sudden Deaths (2021)</span>
+              <i data-lucide="arrow-up-right" className="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
             </a>
-          </p>
-        </section>
+            <a href="https://climateinstitute.ca/reports/extreme-heat-in-canada/" target="_blank" className="flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 transition-colors group">
+              <span className="text-xs font-semibold bg-cyan-500/20 text-cyan-400 px-2.5 py-1 rounded-full w-[60px] text-center">Report</span>
+              <span className="text-neutral-300">Extreme Heat in Canada (2023)</span>
+              <i data-lucide="arrow-up-right" className="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
+            </a>
+            <a href="https://www.cbc.ca/news/canada/montreal/heat-wave-death-toll-1.4740031" target="_blank" className="flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 transition-colors group">
+              <span className="text-xs font-semibold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full w-[60px] text-center">CBC</span>
+              <span className="text-neutral-300">Montreal Heat Wave (2018)</span>
+              <i data-lucide="arrow-up-right" className="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
+            </a>
+          </div>
+        </div>
+        
+        </div>
+      </section>
 
-        {/* ── SECTION 2: HOW IT WORKS ── */}
-        <section id="how-it-works" className="min-h-screen flex flex-col justify-center items-center px-8 py-32 bg-zinc-950">
+      {/*   Sponsors & Partners   */}
+
+
+
+      {/*  How It Works (Simple Horizontal View - Scrollytelling)  */}
+      <section id="how-it-works-simple" className="w-full relative h-[200vh] bg-[#000000]">
+        <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden border-b border-white/[0.05]">
+          <div className="w-full max-w-[1200px] mx-auto px-6">
+            <div className="mb-20">
+              <p className="text-sm uppercase tracking-widest text-orange-400 mb-4">How It Works</p>
+              <h2 className="text-4xl md:text-[40px] font-medium tracking-tight text-white mb-4">From Sensor to Safety</h2>
+              <p className="text-[15px] text-neutral-400 leading-relaxed">Unlike weather apps that report a city-wide average, SafeSpot measures the <span className="text-orange-400 font-medium">actual temperature where you are</span>.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16 relative">
+              {/*  Item 1  */}
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="0">
+                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="w-1.5 h-1.5 rounded-full bg-orange-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(251,146,60,0.8)] animate-[travel-dot_4s_linear_infinite]"></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-orange-400 border-[2px] border-orange-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(251,146,60,0.5)] transition-all relative"></div>
+                </div>
+                <h3 className="text-[15px] font-medium text-white group-hover:text-orange-400 transition-colors mb-2">Measure Real Local Heat</h3>
+                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">A Raspberry Pi sensor captures actual ground-level temperature.</p>
+                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-900 text-orange-300">Hardware</span></div>
+              </div>
+
+              {/*  Item 2  */}
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="1">
+                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="w-1.5 h-1.5 rounded-full bg-purple-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(192,132,252,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:1s]"></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-purple-400 border-[2px] border-purple-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(192,132,252,0.5)] transition-all relative"></div>
+                </div>
+                <h3 className="text-[15px] font-medium text-white group-hover:text-purple-400 transition-colors mb-2">Map Urban Heat Zones</h3>
+                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">ArcGIS data overlays heat island zones on an interactive map.</p>
+                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-900 text-purple-300">GIS Data</span></div>
+              </div>
+
+              {/*  Item 3  */}
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="2">
+                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(248,113,113,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:2s]"></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-red-400 border-[2px] border-red-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(248,113,113,0.5)] transition-all relative"></div>
+                </div>
+                <h3 className="text-[15px] font-medium text-white group-hover:text-red-400 transition-colors mb-2">Trigger Danger Alerts</h3>
+                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">A warning fires when heat and location combine into extreme risk.</p>
+                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-900 text-red-300">Alert System</span></div>
+              </div>
+
+              {/*  Item 4  */}
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="3">
+                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
+                   <div className="w-full h-[1px] bg-gradient-to-r from-white/10 to-transparent absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="w-1.5 h-1.5 rounded-full bg-green-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:3s]"></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-green-400 border-[2px] border-green-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(74,222,128,0.5)] transition-all relative"></div>
+                </div>
+                <h3 className="text-[15px] font-medium text-white group-hover:text-green-400 transition-colors mb-2">Route to Safety</h3>
+                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">Instantly calculates your nearest cooling centre via Maps.</p>
+                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-900 text-green-300">Routing</span></div>
+              </div>
+            </div>
+
+            <button onClick={() => {document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);}} className="flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-colors group mt-10">
+              <span>View all details</span> <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/*  How It Works Section (Detailed Vertical Style)  */}
+      <section id="how-it-works-detailed" className="hidden w-full max-w-[1200px] mx-auto py-32 px-6 border-b border-white/[0.05]">
+        <div className="mb-20">
           <p className="text-sm uppercase tracking-widest text-orange-400 mb-4">How It Works</p>
-          <h2 className="text-4xl font-bold mb-4">From Sensor to Safety</h2>
-          <p className="text-gray-500 text-sm mb-16 text-center max-w-md">
-            Unlike weather apps that report a city-wide average,<br />
-            SafeSpot measures the <span className="text-orange-400 font-medium">actual temperature where you are</span>.
-          </p>
+          <h2 className="text-4xl md:text-[40px] font-medium tracking-tight text-white mb-4">From Sensor to Safety</h2>
+          <p className="text-[15px] text-neutral-400 leading-relaxed">Unlike weather apps that report a city-wide average, SafeSpot measures the <span className="text-orange-400 font-medium">actual temperature where you are</span>.</p>
+        </div>
 
-          <div className="flex flex-col items-center gap-0 w-full max-w-lg">
-            {[
-              {
-                icon: "🍓",
-                label: "Measure Real Local Heat",
-                sub: "A Raspberry Pi sensor deployed in a heat island zone captures the actual ground-level temperature — not a city-wide average.",
-                badge: "Hardware",
-                badgeColor: "bg-orange-900 text-orange-300",
-              },
-              {
-                icon: "🗺️",
-                label: "Map Urban Heat Zones",
-                sub: "ArcGIS data overlays Toronto's heat island zones on an interactive map — so you can see which neighbourhoods are most at risk.",
-                badge: "GIS Data",
-                badgeColor: "bg-purple-900 text-purple-300",
-              },
-              {
-                icon: "📍",
-                label: "Find You",
-                sub: "Browser GPS pinpoints your exact location in real time.",
-                badge: "GPS",
-                badgeColor: "bg-cyan-900 text-cyan-300",
-              },
-              {
-                icon: "🔬",
-                label: "Cross-Check Your Risk",
-                sub: "Your location is checked against the heat island map. Being in a heat island zone during a heat wave is far more dangerous than either factor alone — so we combine both to calculate your actual risk level.",
-                badge: "Risk Engine",
-                badgeColor: "bg-pink-900 text-pink-300",
-              },
-              {
-                icon: "🚨",
-                label: "Trigger a Danger Alert",
-                sub: "When the sensor reads 35°C or above AND you are in a heat island zone, a full-screen warning fires — with sound and push notification.",
-                badge: "Alert System",
-                badgeColor: "bg-red-900 text-red-300",
-              },
-              {
-                icon: "🏛️",
-                label: "Route You to Safety",
-                sub: "The app instantly calculates your nearest cooling centre or library and opens Google Maps directions.",
-                badge: "Routing",
-                badgeColor: "bg-green-900 text-green-300",
-              },
-            ].map((step, i) => (
-              <div key={i} className="flex flex-col items-center w-full">
-                <div className="border border-zinc-700 rounded-2xl px-8 py-5 bg-zinc-900 w-full flex items-start gap-5">
-                  <div className="text-3xl mt-0.5 shrink-0">{step.icon}</div>
-                  <div className="flex-1 text-left">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-white">{step.label}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${step.badgeColor}`}>
-                        {step.badge}
+        <div className="relative w-full pl-6 md:pl-8 mt-12">
+          {/*  Continuous left line  */}
+          <div className="absolute left-0 top-2 bottom-0 w-[1px] bg-white/10"></div>
+          
+          <div className="flex flex-col gap-14 md:gap-16">
+            
+            {/*  Item 1  */}
+            <div className="relative group cursor-pointer block">
+              {/*  Indicator Dot  */}
+              <div className="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-orange-400 border-[2px] border-orange-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(251,146,60,0.5)]"></div>
+              
+              <div className="flex flex-col gap-2">
+                <h3 className="text-lg md:text-[20px] font-medium text-white group-hover:text-orange-400 transition-colors">Measure Real Local Heat</h3>
+                <p className="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">A custom hardware Raspberry Pi temperature sensor is deployed directly in high-risk heat zones. Instead of relying on generalized city-wide weather reports, our sensor sends hyper-local, real-time data to a FastAPI backend at regular intervals. This live reading is instantly rendered on the map, capturing the true ground-level climate reality.</p>
+                <div className="mt-4 mb-6"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-900 text-orange-300">Hardware</span></div>
+                
+                <figure className="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Hardware Sensor" src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80" className="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy" />
+                </figure>
+              </div>
+            </div>
+
+            {/*  Item 2  */}
+            <div className="relative group cursor-pointer block">
+              <div className="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-purple-400 border-[2px] border-purple-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(192,132,252,0.5)]"></div>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-lg md:text-[20px] font-medium text-white group-hover:text-purple-400 transition-colors">Map Urban Heat Zones</h3>
+                <p className="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">We integrate live ArcGIS REST API data to display Toronto's 'Impervious Surface and Urban Heat Island Effect' layer directly on an interactive Leaflet map. This creates colour-coded zones—from yellow to deep red—clearly distinguishing high, medium, and low heat risk areas so you can instantly see which neighbourhoods are most vulnerable.</p>
+                <div className="mt-4 mb-6"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-900 text-purple-300">GIS Data</span></div>
+                
+                <figure className="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Map Data" src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1600&q=80" className="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy" />
+                </figure>
+              </div>
+            </div>
+
+            {/*  Item 3  */}
+            <div className="relative group cursor-pointer block">
+              <div className="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-cyan-400 border-[2px] border-cyan-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(34,211,238,0.5)]"></div>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-lg md:text-[20px] font-medium text-white group-hover:text-cyan-400 transition-colors">Find You</h3>
+                <p className="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">Using secure browser APIs, SafeSpot pinpoints your exact geographic coordinates in real time. By quickly detecting your position, the application establishes your precise location as the critical starting point for all subsequent safety and routing calculations.</p>
+                <div className="mt-4 mb-6"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-cyan-900 text-cyan-300">GPS</span></div>
+                
+                <figure className="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Location Tracking" src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80" className="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy" />
+                </figure>
+              </div>
+            </div>
+
+            {/*  Item 4  */}
+            <div className="relative group cursor-pointer block">
+              <div className="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-pink-400 border-[2px] border-pink-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(244,114,182,0.5)]"></div>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-lg md:text-[20px] font-medium text-white group-hover:text-pink-400 transition-colors">Cross-Check Your Risk</h3>
+                <p className="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">Your live GPS coordinates are dynamically cross-referenced against the ArcGIS urban heat island layers. Because experiencing extreme temperatures inside a known heat island is exponentially more dangerous, SafeSpot combines these two data points—hardware sensor readings and geospatial risk zoning—to accurately calculate your individualized risk level.</p>
+                <div className="mt-4 mb-6"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-pink-900 text-pink-300">Risk Engine</span></div>
+                
+                <figure className="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Data Dashboard" src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80" className="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy" />
+                </figure>
+              </div>
+            </div>
+
+            {/*  Item 5  */}
+            <div className="relative group cursor-pointer block">
+              <div className="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-red-400 border-[2px] border-red-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(248,113,113,0.5)]"></div>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-lg md:text-[20px] font-medium text-white group-hover:text-red-400 transition-colors">Trigger a Danger Alert</h3>
+                <p className="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">When our Raspberry Pi sensor detects that the local temperature has exceeded the critical 35°C threshold, the app automatically triggers an 'Extreme Heat Warning'. A prominent alert banner fires, displaying your current temperature and risk level, immediately prompting you to find a cool space.</p>
+                <div className="mt-4 mb-6"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-900 text-red-300">Alert System</span></div>
+                
+                <figure className="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Alert System" src="https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=1600&q=80" className="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy" />
+                </figure>
+              </div>
+            </div>
+
+            {/*  Item 6  */}
+            <div className="relative group cursor-pointer block">
+              <div className="absolute -left-[30px] md:-left-[38px] top-1.5 w-2.5 h-2.5 rounded-full bg-green-400 border-[2px] border-green-400 transition-all shadow-[0_0_0_3px_#000] group-hover:shadow-[0_0_0_3px_#000,0_0_10px_rgba(74,222,128,0.5)]"></div>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-lg md:text-[20px] font-medium text-white group-hover:text-green-400 transition-colors">Route You to Safety</h3>
+                <p className="text-[15px] text-neutral-400 leading-relaxed max-w-[760px] mt-1">Once a danger alert is triggered, the system automatically calculates the distance to the closest City of Toronto cooling centre or library branch. It highlights these safe spaces on your map and displays actionable information, such as "Nearest Cooling Centre: [Name], 0.3 km away", providing you with an immediate, life-saving route to safety.</p>
+                <div className="mt-4 mb-6"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-900 text-green-300">Routing</span></div>
+                
+                <figure className="relative w-full max-w-[760px] rounded-[16px] border border-white/10 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-zinc-900 mt-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-500 z-10 pointer-events-none"></div>
+                  <img alt="Routing to Safety" src="../images/routing_map.png" className="w-full h-[280px] md:h-[360px] object-cover opacity-60 group-hover:opacity-90 transition-all duration-700 scale-100 group-hover:scale-[1.02]" loading="lazy" />
+                </figure>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div className="mt-20 flex justify-start">
+          <button onClick={() => {document.getElementById('how-it-works-detailed').classList.add('hidden'); document.getElementById('how-it-works-simple').classList.remove('hidden'); setTimeout(() => document.getElementById('how-it-works-simple').scrollIntoView({ behavior: 'smooth' }), 50);}} className="inline-flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-colors group">
+            <span className="group-hover:-translate-x-1 transition-transform">←</span> <span>Show less</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="dashboard" className="w-full max-w-[1200px] mx-auto py-32 px-6 md:px-12 border-b border-white/[0.05] scroll-mt-24">
+        <div className="mb-16">
+          <p className="text-sm uppercase tracking-widest text-orange-400 mb-4 font-semibold">Live Map</p>
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-4">Interactive Heat Dashboard</h2>
+          <p className="text-[15px] md:text-[16px] text-neutral-400 max-w-[800px] leading-relaxed">
+            Experience our live integration. We combine real-time hardware sensor readings with ArcGIS mapping to highlight extreme urban heat zones and safely route users to cooling centres.
+          </p>
+        </div>
+        {/*   Main App Mockup Image   */}
+        {/*   Main App Mockup HTML   */}
+        <div className="w-full min-h-[760px] rounded-[16px] border border-white/10 bg-[#0a0a0a] overflow-hidden relative shadow-[0_40px_100px_rgba(255,255,255,0.03)] flex flex-col md:flex-row ring-1 ring-white/5">
+           
+           {/*   Left Sidebar: Data Cards   */}
+           <div className="w-full md:w-[280px] border-r border-white/5 bg-[#111111]/90 backdrop-blur-xl flex flex-col z-20 shrink-0">
+              {/*  Header  */}
+              <div className="h-16 border-b border-white/5 flex items-center px-6 justify-between gap-4 w-full">
+                 <div className="flex items-center gap-3">
+                   <div className="flex items-center justify-center w-6 h-6 rounded-md bg-orange-500/20 text-orange-400">
+                     <i data-lucide="activity" className="w-4 h-4"></i>
+                   </div>
+                   <span className="text-white font-medium text-[14px]">Live Dashboard</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <span className="relative flex h-2 w-2">
+                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                   </span>
+                   <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-widest">Live</span>
+                 </div>
+              </div>
+
+              {/*  Cards Container  */}
+              <div className="flex-1 p-6 flex flex-col gap-6">
+                 
+                 {/*  Sensor & Weather Grid  */}
+                 <div className="flex flex-col gap-4">
+                   {/*  Sensor Card  */}
+                   <div className="bg-gradient-to-br from-[#1a1311] to-white/[0.02] border border-orange-500/20 rounded-xl p-4 flex flex-col relative overflow-hidden group hover:border-orange-500/40 transition-colors">
+                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                       <i data-lucide="cpu" className="w-16 h-16 text-orange-500"></i>
+                     </div>
+                     <div className="text-[12px] font-medium text-neutral-400 mb-1 flex items-center gap-2">
+                       <i data-lucide="thermometer" className="w-3.5 h-3.5 text-orange-400"></i> Local Sensor
+                     </div>
+                     <div className="text-3xl font-semibold text-white tracking-tight mt-1">{activeTemp !== null ? activeTemp.toFixed(1) : "--"}<span className="text-lg text-neutral-500 font-normal ml-0.5">°C</span></div>
+                     <div className="mt-4 flex items-center gap-2 text-[12px]">
+                       <span className={`px-2 py-0.5 rounded flex items-center gap-1 font-medium ${activeTemp === null || activeTemp >= 40 ? "bg-red-500/20 text-red-400" : activeTemp >= 35 ? "bg-orange-500/20 text-orange-400" : activeTemp >= 30 ? "bg-yellow-500/20 text-yellow-400" : "bg-green-500/20 text-green-400"}`}><i data-lucide={activeTemp === null || activeTemp >= 35 ? "alert-triangle" : "check-circle"} className="w-3 h-3"></i> {getAlertLevel(activeTemp)}</span>
+                       <span className="text-neutral-500">Raspberry Pi</span>
+                     </div>
+                   </div>
+
+                   {/*  Weather Card  */}
+                   <div className="bg-gradient-to-br from-[#11151a] to-white/[0.02] border border-blue-500/10 rounded-xl p-4 flex flex-col relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                       <i data-lucide="cloud-sun" className="w-16 h-16 text-blue-400"></i>
+                     </div>
+                     <div className="text-[12px] font-medium text-neutral-400 mb-1 flex items-center gap-2">
+                       <i data-lucide="map-pin" className="w-3.5 h-3.5 text-blue-400"></i> City Weather
+                     </div>
+                     <div className="text-3xl font-semibold text-white tracking-tight mt-1">{weatherTemp !== null ? weatherTemp.toFixed(1) : "--"}<span className="text-lg text-neutral-500 font-normal ml-0.5">°C</span></div>
+                     <div className="mt-4 flex items-center gap-2 text-[12px]">
+                       <span className="text-neutral-300 font-medium" style={{textTransform:"capitalize"}}>{weatherLoc ? weatherLoc : "Toronto"}</span>
+                       <span className="text-neutral-600 px-1">•</span>
+                       <span className="text-neutral-500" style={{textTransform:"capitalize"}}>{weatherDesc ? weatherDesc : "--"}</span>
+                     </div>
+                   </div>
+                 </div>
+
+                 <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                  {/*  Your Location Bar  */}
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">📍 Your Location</span>
+                      <span className="text-[13px] font-mono text-cyan-400 font-semibold mt-0.5">
+                        {userPos ? `${userPos.lat.toFixed(5)}, ${userPos.lng.toFixed(5)}` : '--, --'}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500 leading-relaxed">{step.sub}</div>
+                    <button 
+                      onClick={() => requestUserLocation(true)} 
+                      className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors" 
+                      title="Update Location"
+                    >
+                      ↺
+                    </button>
+                  </div>
+
+                  {/*  Nearest Cooling Centre Card  */}
+                  <div className="bg-[#141824]/40 border border-blue-500/20 rounded-xl p-3 flex flex-col gap-1">
+                    <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1">❄️ Nearest Cooling Centre</div>
+                    {userPos && nearestCooling ? (
+                      <>
+                        <div className="text-[13px] font-semibold text-white truncate mt-1" title={nearestCooling.name}>{nearestCooling.name}</div>
+                        <div className="text-[10px] text-neutral-400 truncate">{nearestCooling.address || 'Address not listed'}</div>
+                        <div className="flex items-center justify-between mt-1 text-[11px]">
+                          <span className="font-semibold text-blue-400">{nearestCooling.distance.toFixed(2)} km</span>
+                          <button 
+                            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&origin=${userPos.lat},${userPos.lng}&destination=${nearestCooling.lat},${nearestCooling.lng}`, "_blank")}
+                            className="text-blue-400 hover:text-blue-300 font-medium flex items-center gap-0.5"
+                          >
+                            🗺️ Directions
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-[11px] text-neutral-500 mt-0.5">Detect location to calculate</div>
+                    )}
+                  </div>
+
+                  {/*  Nearest Library Card  */}
+                  <div className="bg-[#121c17]/40 border border-green-500/20 rounded-xl p-3 flex flex-col gap-1">
+                    <div className="text-[10px] font-bold text-green-400 uppercase tracking-wider flex items-center gap-1">📚 Nearest Library</div>
+                    {userPos && nearestLibrary ? (
+                      <>
+                        <div className="text-[13px] font-semibold text-white truncate mt-1" title={nearestLibrary.name}>{nearestLibrary.name}</div>
+                        <div className="text-[10px] text-neutral-400 truncate">{nearestLibrary.address || 'Address not listed'}</div>
+                        <div className="flex items-center justify-between mt-1 text-[11px]">
+                          <span className="font-semibold text-green-400">{nearestLibrary.distance.toFixed(2)} km</span>
+                          <button 
+                            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&origin=${userPos.lat},${userPos.lng}&destination=${nearestLibrary.lat},${nearestLibrary.lng}`, "_blank")}
+                            className="text-green-400 hover:text-green-300 font-medium flex items-center gap-0.5"
+                          >
+                            🗺️ Directions
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-[11px] text-neutral-500 mt-0.5">Detect location to calculate</div>
+                    )}
+                  </div>
+
+
+              </div>
+           </div>
+           
+           {/*   Right Area: Map Visualization   */}
+           <div className="flex-1 relative bg-[#050505] overflow-hidden flex flex-col">
+              {/*  Actual Map Container  */}
+              <div id="map" className="absolute inset-0 z-0"></div>
+              {/* 🧪 Test buttons */}
+              <div 
+                className="absolute top-4 right-4 z-[1000] flex flex-row flex-wrap justify-end gap-2 pointer-events-auto"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+              >
+                <button type="button" onClick={() => setSimulatedTemp(30)} className="text-[13px] px-3 py-2 rounded shadow-lg bg-yellow-500/90 hover:bg-yellow-400 text-black font-bold backdrop-blur-sm transition-transform active:scale-95">⚠️ 30°C</button>
+                <button type="button" onClick={() => setSimulatedTemp(36)} className="text-[13px] px-3 py-2 rounded shadow-lg bg-orange-600/90 hover:bg-orange-500 text-white font-bold backdrop-blur-sm transition-transform active:scale-95">🚨 36°C</button>
+                <button type="button" onClick={() => setSimulatedTemp(41)} className="text-[13px] px-3 py-2 rounded shadow-lg bg-red-700/90 hover:bg-red-600 text-white font-bold backdrop-blur-sm transition-transform active:scale-95">🔴 41°C</button>
+                <button type="button" onClick={() => { setSimulatedTemp(null); setSensorTemp(20.0); if (fetchSensorRef.current) fetchSensorRef.current(); }} className="text-[13px] px-3 py-2 rounded shadow-lg bg-zinc-700/90 hover:bg-zinc-600 text-white font-bold backdrop-blur-sm transition-transform active:scale-95 ring-1 ring-white/20">✅ Reset</button>
+              </div>
+
+              {/* 🗺️ Horizontal Map Legend Floating Overlay */}
+              <div className="absolute bottom-3 left-3 z-[1000] bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 py-2 flex items-center gap-4 text-[11px] text-neutral-300 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider border-r border-white/10 pr-2">Layers</span>
+                
+                {/* Heat levels */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded bg-[#dc2626]/85 border border-red-500/50 shrink-0"></div>
+                    <span>High</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded bg-[#f97316]/65 border border-orange-500/50 shrink-0"></div>
+                    <span>Mid</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded bg-[#facc15]/45 border border-yellow-500/50 shrink-0"></div>
+                    <span>Low</span>
                   </div>
                 </div>
-                {i < 5 && <div className="text-gray-700 text-2xl my-1">↓</div>}
+
+                <div className="h-3 w-px bg-white/10"></div>
+
+                {/* Symbols */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#111] border border-blue-500/30 flex items-center justify-center text-blue-400 text-[8px] shrink-0">❄️</div>
+                    <span>Cooling</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3.5 h-3.5 rounded-full bg-blue-600 flex items-center justify-center text-white text-[8px] shrink-0">📚</div>
+                    <span>Library</span>
+                  </div>
+                </div>
               </div>
-            ))}
+           </div>
+        </div>
+      </section>
+
+      {/*  GitHub Integration  */}
+      <section id="open-source" className="w-full relative py-32 border-b border-white/[0.05] scroll-mt-24 overflow-hidden">
+        
+        {/*  Video Background with Mask  */}
+        <div className="absolute inset-0 w-full h-full z-0 flex justify-center items-center pointer-events-none">
+          <video autoPlay loop muted playsInline disablePictureInPicture disableRemotePlayback className="min-w-full min-h-full object-cover">
+            <source src="https://static.linear.app/assets/hero/INTAKE-v4.output.h264.crf18.mp4" type="video/mp4" />
+          </video>
+          {/*  Gradient Masks to softly darken the background for readability  */}
+          <div className="absolute inset-0 bg-[#000000]/10"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-[#000000] via-transparent to-[#000000]"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-[#000000] via-transparent to-[#000000]"></div>
+        </div>
+
+        {/*  Content Container  */}
+        <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center gap-12 md:gap-16">
+          <div className="flex-1">
+            <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-6 drop-shadow-lg">Open Source & Ready</h2>
+            <p className="text-[17px] text-neutral-300 leading-relaxed mb-8 drop-shadow-md font-medium">
+              Explore the complete SafeSpot architecture. From Raspberry Pi sensor scripts to the FastAPI backend and Next.js frontend—everything is available for review and contribution.
+            </p>
+            <a href="https://github.com/codexperts2024/SafeSpot_codeXperts" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-white bg-black/40 hover:bg-black/60 border border-white/20 px-6 py-3 rounded-full text-sm font-medium transition-colors backdrop-blur-md shadow-lg">
+              <i data-lucide="github" className="w-4 h-4"></i>
+              View on GitHub
+              <span className="text-neutral-400 ml-1">→</span>
+            </a>
           </div>
-        </section>
-
-        {/* ── SECTION 3: LIVE MAP DASHBOARD ── */}
-        <section id="dashboard" className="flex flex-col items-center px-8 py-24">
-          <p className="text-sm uppercase tracking-widest text-orange-400 mb-4">Live Dashboard</p>
-          <h2 className="text-4xl font-bold mb-2">Real-Time Safety Map</h2>
-          <p className="text-gray-400 mb-10 text-center">
-            Heat island zones · Cooling centres · Libraries · Your location — all in one map
-          </p>
-
-          {/* Legend */}
-          <div className="flex flex-wrap justify-center gap-5 mb-8 text-xs text-gray-400">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm inline-block" style={{backgroundColor:"#8B0000"}}/><span>High Heat Area</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm inline-block" style={{backgroundColor:"#FF0000"}}/><span>Medium Heat Area</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm inline-block" style={{backgroundColor:"#f97316"}}/><span>Low Heat Area</span></span>
-            <span className="flex items-center gap-1.5"><span>❄️</span><span>Cooling Centre</span></span>
-            <span className="flex items-center gap-1.5"><span>📚</span><span>Library</span></span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-orange-400 inline-block"/><span>You</span></span>
+          <div className="flex-1 w-full relative">
+            <div className="spotlight-card relative w-full max-w-[500px] ml-auto rounded-xl border border-white/10 bg-[#0d0d0d]/70 backdrop-blur-xl shadow-[0_0_50px_rgba(255,255,255,0.05)] overflow-hidden group">
+              <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-10 mix-blend-screen" style={{"background":"radial-gradient(400px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.08), transparent 40%)"}}></div>
+              <div className="absolute inset-0 bg-gradient-to-tr from-green-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+              <div className="relative z-20 h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-white/[0.02]">
+                <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
+                <div className="ml-2 text-[11px] text-neutral-500 font-mono tracking-wider">main.py</div>
+              </div>
+              <div className="p-6 text-[13px] font-mono leading-relaxed text-neutral-300 overflow-x-auto whitespace-pre">
+<div className="flex"><span className="text-neutral-600 mr-4 select-none">1</span><span className="text-pink-400">@app</span><span className="text-white">.post(</span><span className="text-green-400">"/api/sensor-data"</span><span className="text-white">)</span></div>
+<div className="flex"><span className="text-neutral-600 mr-4 select-none">2</span><span className="text-purple-400">async def</span> <span className="text-blue-400">receive_data</span><span className="text-white">(data: SensorData):</span></div>
+<div className="flex bg-white/[0.04] -mx-6 px-6 border-l-2 border-green-400"><span className="text-neutral-600 mr-4 select-none">3</span><span>    </span><span className="text-pink-400">if</span> <span className="text-white">data.temperature &gt; </span><span className="text-orange-400">35.0</span><span className="text-white">:</span></div>
+<div className="flex bg-white/[0.04] -mx-6 px-6 border-l-2 border-green-400"><span className="text-neutral-600 mr-4 select-none">4</span><span>        </span><span className="text-blue-400">trigger_alert</span><span className="text-white">(</span><span className="text-green-400">"Extreme Heat Warning"</span><span className="text-white">)</span></div>
+<div className="flex"><span className="text-neutral-600 mr-4 select-none">5</span><span>    </span><span className="text-purple-400">return</span> <span className="text-white">{"{"}</span><span className="text-green-400">"status"</span><span className="text-white">: </span><span className="text-green-400">"success"</span><span className="text-white">{"}"}</span></div>
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
 
-          {/* Temperature cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl mb-6">
-            <SensorCard />
-            <WeatherCard />
+      {/*  The Team Section  */}
+      <section id="team" className="w-full max-w-[1200px] mx-auto py-32 px-6 md:px-12 border-b border-white/[0.05] scroll-mt-24">
+        <div className="text-center mb-20">
+          <p className="text-sm uppercase tracking-widest text-purple-400 mb-4">Behind SafeSpot</p>
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-4">Meet the codeXperts</h2>
+          <p className="text-[17px] text-neutral-400">The engineers and designers behind the project.</p>
+        </div>
+        
+        <div className="flex flex-wrap justify-center gap-6 md:gap-10 lg:gap-14 max-w-[1200px] mx-auto">
+           {/*  Gary  */}
+           <a href="https://github.com/GarySkywalker-droid" className="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div className="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style={{"background":"radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%)"}}></div>
+                 <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/gary.jpg" alt="Gary" className="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
+              </div>
+              <div className="font-medium text-white text-[16px] mb-1">Gary</div>
+              <div className="text-neutral-500 text-[13px] text-center uppercase tracking-wide">Hardware</div>
+           </a>
+           
+           {/*  Marcos  */}
+           <a href="https://github.com/markeenmelo" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div className="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style={{"background":"radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%)"}}></div>
+                 <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/marcos.png" alt="Marcos" className="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
+              </div>
+              <div className="font-medium text-white text-[16px] mb-1">Marcos</div>
+              <div className="text-neutral-500 text-[13px] text-center uppercase tracking-wide">Backend</div>
+           </a>
+           
+           {/*  Paul  */}
+           <a href="https://github.com/minsikpaul92" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div className="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style={{"background":"radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%)"}}></div>
+                 <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/paul.jpg" alt="Paul" className="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
+              </div>
+              <div className="font-medium text-white text-[16px] mb-1">Paul</div>
+              <div className="text-neutral-500 text-[13px] text-center uppercase tracking-wide">Frontend</div>
+           </a>
+           
+           {/*  Seulgi  */}
+           <a href="https://github.com/seulgi-dev" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div className="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style={{"background":"radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%)"}}></div>
+                 <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/seulgi.jpg" alt="Seulgi" className="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
+              </div>
+              <div className="font-medium text-white text-[16px] mb-1">Seulgi</div>
+              <div className="text-neutral-500 text-[13px] text-center uppercase tracking-wide">UI/UX</div>
+           </a>
+           
+           {/*  Arun  */}
+           <a href="https://github.com/arunrajea" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center group w-[140px] cursor-pointer">
+              <div className="spotlight-card w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border border-white/10 mb-5 group-hover:border-white/40 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-500 relative">
+                 <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100 z-20 mix-blend-screen" style={{"background":"radial-gradient(200px circle at var(--x, 0) var(--y, 0), rgba(255,255,255,0.15), transparent 40%)"}}></div>
+                 <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-500 z-10 pointer-events-none"></div>
+                 <img src="../images/team/arun.jpg" alt="Arun" className="w-full h-full object-cover scale-100 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
+              </div>
+              <div className="font-medium text-white text-[16px] mb-1">Arun</div>
+              <div className="text-neutral-500 text-[13px] text-center uppercase tracking-wide">GPS & Routing</div>
+           </a>
+        </div>
+      </section>
+
+      <section id="sponsors" className="w-full max-w-[1200px] mx-auto py-16 overflow-hidden relative border-t border-white/[0.05]">
+        <div className="text-center mb-10">
+           <p className="text-sm uppercase tracking-widest text-neutral-500 font-semibold">Our Partners</p>
+        </div>
+        
+        <style dangerouslySetInnerHTML={{ __html: `
+.leaflet-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.leaflet-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.leaflet-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+.leaflet-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+          @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+          }
+          .animate-marquee {
+            display: flex;
+            width: max-content;
+            animation: marquee 30s linear infinite;
+          }
+          .animate-marquee:hover {
+            animation-play-state: paused;
+          }
+          .sponsor-logo {
+            height: 100px;
+            max-width: 280px;
+            object-fit: contain;
+            transition: all 0.3s ease;
+          }
+          .sponsor-logo:hover {
+            transform: scale(1.05);
+          }
+          .sponsor-logo.ssf-large {
+            transform: scale(1.6);
+          }
+          .sponsor-logo.ssf-large:hover {
+            transform: scale(1.65);
+          }
+        `}} />
+
+        <div className="relative w-full flex overflow-hidden">
+          {/*  Fade masks  */}
+          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+          
+          <div className="animate-marquee gap-16 items-center px-8">
+            {/*  Set 1  */}
+            <a href="https://www.alectra.com" target="_blank" rel="noopener noreferrer"><img src="../logo/Alectra.png" alt="Alectra" className="sponsor-logo" /></a>
+            <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer"><img src="../logo/ESRI.png" alt="Esri" className="sponsor-logo" style={{"filter":"brightness(0) invert(1)"}} /></a>
+            <a href="https://ssfinc.ca" target="_blank" rel="noopener noreferrer"><img src="../logo/SSF.png" alt="SSF" className="sponsor-logo ssf-large" /></a>
+            <a href="https://learnatocto.com" target="_blank" rel="noopener noreferrer"><img src="../logo/Octo.png" alt="Octo" className="sponsor-logo" /></a>
+            <a href="https://www.torontotechweek.com" target="_blank" rel="noopener noreferrer"><img src="../logo/TTW.png" alt="TorontoTechWeek" className="sponsor-logo" /></a>
+            <a href="https://www.comunitycanada.ca" target="_blank" rel="noopener noreferrer"><img src="../logo/ComUnity.jpeg" alt="ComUnity" className="sponsor-logo" /></a>
+            <a href="https://gdg.community.dev" target="_blank" rel="noopener noreferrer"><img src="../logo/GDG.png" alt="GDG" className="sponsor-logo" style={{"height":"80px","objectFit":"cover","objectPosition":"center"}} /></a>
+            {/*  Duplicate for infinite scroll  */}
+            <a href="https://www.alectra.com" target="_blank" rel="noopener noreferrer"><img src="../logo/Alectra.png" alt="Alectra" className="sponsor-logo" /></a>
+            <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer"><img src="../logo/ESRI.png" alt="Esri" className="sponsor-logo" style={{"filter":"brightness(0) invert(1)"}} /></a>
+            <a href="https://ssfinc.ca" target="_blank" rel="noopener noreferrer"><img src="../logo/SSF.png" alt="SSF" className="sponsor-logo ssf-large" /></a>
+            <a href="https://learnatocto.com" target="_blank" rel="noopener noreferrer"><img src="../logo/Octo.png" alt="Octo" className="sponsor-logo" /></a>
+            <a href="https://www.torontotechweek.com" target="_blank" rel="noopener noreferrer"><img src="../logo/TTW.png" alt="TorontoTechWeek" className="sponsor-logo" /></a>
+            <a href="https://www.comunitycanada.ca" target="_blank" rel="noopener noreferrer"><img src="../logo/ComUnity.jpeg" alt="ComUnity" className="sponsor-logo" /></a>
+            <a href="https://gdg.community.dev" target="_blank" rel="noopener noreferrer"><img src="../logo/GDG.png" alt="GDG" className="sponsor-logo" style={{"height":"80px","objectFit":"cover","objectPosition":"center"}} /></a>
           </div>
+        </div>
+      </section>
 
-          {/* GPS + full map + nearest shelter */}
-          <NearestShelter />
-        </section>
-      </main>
+      {/*   Footer   */}
+      <footer className="w-full border-t border-white/[0.05] bg-[#000000] pt-16 pb-12 px-6">
+        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+          
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+              <div className="w-5 h-5 rounded-full border-[3px] border-white relative before:absolute before:inset-0 before:m-auto before:w-2 before:h-2 before:bg-white before:rounded-full mix-blend-screen opacity-90 -ml-1"></div>
+              <span className="text-white font-medium text-lg tracking-tight">SafeSpot Toronto</span>
+            </div>
+            <p className="text-neutral-500 text-[14px]">Real-time heat risk mapping & cooling centre routing</p>
+          </div>
+          
+          <div className="text-neutral-500 text-[13px] md:text-right flex flex-col gap-1.5">
+             <p className="text-white/70">Built for Seneca Polytechnic Hackathon 2026</p>
+             <p>Theme 3: Community Energy, Equity and Sustainability</p>
+          </div>
+          
+        </div>
+      </footer>
+    </div>
+  
 
-      <Footer />
+  {/*  Floating Back to Top Button  */}
+  <button id="backToTop" className="fixed bottom-8 right-8 z-[100] p-4 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full text-white backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)] translate-y-4" aria-label="Back to top">
+    <i data-lucide="arrow-up" className="w-6 h-6"></i>
+  </button>
+
+
     </>
   );
 }
