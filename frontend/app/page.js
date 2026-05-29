@@ -313,6 +313,13 @@ export default function Home() {
     setCurrentZone(detectHeatZone(userPos, heatFeatures));
   }, [userPos, heatFeatures]);
 
+  // Listen for map location button requesting GPS
+  useEffect(() => {
+    const handler = () => requestUserLocation(true);
+    window.addEventListener('safespot-request-location', handler);
+    return () => window.removeEventListener('safespot-request-location', handler);
+  }, []);
+
 
   useEffect(() => {
     // Lucide icons
@@ -441,8 +448,13 @@ export default function Home() {
                 
                 container.onclick = function(e){
                     e.preventDefault();
-                    const latlng = userMarker.getLatLng();
-                    map.flyTo([latlng.lat, latlng.lng], 14, { duration: 1.2 });
+                    if (!userMarker) {
+                        // No GPS yet — ask React to acquire location
+                        window.dispatchEvent(new CustomEvent('safespot-request-location'));
+                    } else {
+                        const latlng = userMarker.getLatLng();
+                        map.flyTo([latlng.lat, latlng.lng], 14, { duration: 1.2 });
+                    }
                 };
                 return container;
             }
@@ -494,26 +506,21 @@ export default function Home() {
       });
 
       backToTopBtn.addEventListener('click', () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (window.__lenis) window.__lenis.scrollTo(0, { duration: 1.2 });
+        else window.scrollTo({ top: 0, behavior: 'smooth' });
       });
 
-      // Custom smooth scroll with easeInOutQuart — much smoother than browser default
-      function smoothScrollTo(targetY, duration = 900) {
-        const startY = window.scrollY;
-        const diff = targetY - startY;
-        if (Math.abs(diff) < 1) return;
-        const startTime = performance.now();
-        // easeInOutQuart: slow start, fast middle, slow end
-        const ease = (t) => t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
-        // Scale duration with distance so short hops don't feel slow
-        const scaledDuration = Math.min(Math.max(Math.abs(diff) / 3, 500), duration);
-        const step = (now) => {
-          const elapsed = now - startTime;
-          const progress = Math.min(elapsed / scaledDuration, 1);
-          window.scrollTo(0, startY + diff * ease(progress));
-          if (progress < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
+      // Smooth scroll via Lenis (expo-out easing = Apple-like feel)
+      const lenisEase = (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t));
+
+      function scrollTo(target, offset = 0) {
+        if (window.__lenis) {
+          window.__lenis.scrollTo(target, { offset, duration: 1.4, easing: lenisEase });
+        } else {
+          // fallback
+          const y = (typeof target === 'number' ? target : target.getBoundingClientRect().top + window.scrollY) + offset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
       }
 
       // Smooth scroll for nav links
@@ -521,13 +528,18 @@ export default function Home() {
         link.addEventListener('click', (e) => {
           e.preventDefault();
           const targetId = link.getAttribute('href').slice(1);
-          const scrollTarget = targetId === 'dashboard'
-            ? (document.getElementById('map-widget') || document.getElementById(targetId))
-            : document.getElementById(targetId);
+          const isMobile = window.innerWidth < 768;
+          let scrollTarget;
+          if (targetId === 'dashboard') {
+            scrollTarget = isMobile
+              ? (document.getElementById('map-area') || document.getElementById('map-widget'))
+              : document.getElementById('map-widget');
+          } else {
+            scrollTarget = document.getElementById(targetId);
+          }
           if (scrollTarget) {
             const navH = document.querySelector('header')?.offsetHeight || 64;
-            const y = scrollTarget.getBoundingClientRect().top + window.scrollY - navH - 8;
-            smoothScrollTo(y);
+            scrollTo(scrollTarget, -(navH + 8));
           }
         });
       });
@@ -547,7 +559,7 @@ export default function Home() {
         let accumulated = 0;
         const STICK_THRESHOLD = 187; // wheel delta px before releasing
 
-        // Wheel intercept for stick effect
+        // Wheel intercept for stick effect — also stops Lenis during stick
         window.addEventListener('wheel', (e) => {
           if (!isStuck) return;
           e.preventDefault();
@@ -555,6 +567,7 @@ export default function Home() {
           if (accumulated >= STICK_THRESHOLD) {
             isStuck = false;
             accumulated = 0;
+            window.__lenis?.start();
           }
         }, { passive: false });
 
@@ -583,25 +596,35 @@ export default function Home() {
             }
           });
 
-          // Glow + stick: show once all items visible, keep until clicked
-          const allVisible = scrollProgress > 0.5;
+          // Show View Details only after all 4 items revealed (>= 55% progress)
+          const allVisible = scrollProgress >= 0.55;
           const btn = document.getElementById('view-details-btn');
-          if (btn && !btn.dataset.clicked) {
-            if (allVisible) btn.classList.add('btn-glow');
-            else btn.classList.remove('btn-glow');
+          if (btn) {
+            if (allVisible) {
+              btn.classList.remove('opacity-0', 'pointer-events-none');
+              btn.classList.add('opacity-100', 'pointer-events-auto');
+              if (!btn.dataset.clicked) btn.classList.add('btn-glow');
+            } else {
+              btn.classList.add('opacity-0', 'pointer-events-none');
+              btn.classList.remove('opacity-100', 'pointer-events-auto', 'btn-glow');
+            }
           }
 
           if (allVisible && !wasAllVisible) {
             isStuck = true;
             accumulated = 0;
-            if (btn) {
+            window.__lenis?.stop();
+            if (btn && !btn.dataset.clicked) {
               btn.addEventListener('click', () => {
                 btn.classList.remove('btn-glow');
                 btn.dataset.clicked = '1';
               }, { once: true });
             }
           }
-          if (!allVisible) isStuck = false;
+          if (!allVisible) {
+            isStuck = false;
+            window.__lenis?.start();
+          }
           wasAllVisible = allVisible;
         }, { passive: true });
       }
@@ -916,7 +939,22 @@ export default function Home() {
           <div className="md:hidden border-t border-white/[0.05] bg-[#000000]/95 backdrop-blur-md px-6 py-4 flex flex-col gap-4">
             <nav className="flex flex-col gap-3 text-[15px] text-neutral-400 font-medium">
               {[['#story','Why SafeSpot'],['#how-it-works-simple','How It Works'],['#dashboard','Live Map'],['#open-source','Open Source'],['#team-sponsors','Team']].map(([href, label]) => (
-                <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="hover:text-white transition-colors py-1">{label}</a>
+                <a key={href} href={href} onClick={(e) => {
+                  e.preventDefault();
+                  setMobileMenuOpen(false);
+                  const targetId = href.slice(1);
+                  const el = targetId === 'dashboard'
+                    ? (document.getElementById('map-area') || document.getElementById('map-widget'))
+                    : document.getElementById(targetId);
+                  if (el) {
+                    const navH = document.querySelector('header')?.offsetHeight || 64;
+                    if (window.__lenis) {
+                      window.__lenis.scrollTo(el, { offset: -(navH + 8), duration: 1.4, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+                    } else {
+                      el.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }
+                }} className="hover:text-white transition-colors py-1">{label}</a>
               ))}
             </nav>
             <button onClick={() => { requestUserLocation(true); setMobileMenuOpen(false); }} className="self-start flex items-center gap-2 text-[13px] text-neutral-400 bg-white/5 border border-white/10 px-3 py-2 rounded-xl hover:bg-white/10 transition-colors">
@@ -993,7 +1031,7 @@ export default function Home() {
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-8 mb-4 md:mb-16 relative">
               {/*  Item 1  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="0">
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="0">
                 <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
                    <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(251,146,60,0.8)] animate-[travel-dot_4s_linear_infinite]"></div>
@@ -1005,7 +1043,7 @@ export default function Home() {
               </div>
 
               {/*  Item 2  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="1">
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="1">
                 <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
                    <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
                    <div className="w-1.5 h-1.5 rounded-full bg-purple-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(192,132,252,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:1s]"></div>
@@ -1017,7 +1055,7 @@ export default function Home() {
               </div>
 
               {/*  Item 3  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="2">
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="2">
                 <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
                    <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
                    <div className="w-1.5 h-1.5 rounded-full bg-red-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(248,113,113,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:2s]"></div>
@@ -1029,7 +1067,7 @@ export default function Home() {
               </div>
 
               {/*  Item 4  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="3">
+              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="3">
                 <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
                    <div className="w-full h-[1px] bg-gradient-to-r from-white/10 to-transparent absolute left-0 top-1/2 -translate-y-1/2"></div>
                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:3s]"></div>
@@ -1041,7 +1079,7 @@ export default function Home() {
               </div>
             </div>
 
-            <button id="view-details-btn" onClick={() => {document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);}} className="flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-all group mt-10 px-4 py-2 rounded-lg">
+            <button id="view-details-btn" onClick={() => {document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); window.__lenis?.start(); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);}} className="flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-[opacity,color] duration-300 group mt-10 px-4 py-2 rounded-lg opacity-0 pointer-events-none">
               <span>View all details</span> <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
           </div>
@@ -1354,7 +1392,7 @@ export default function Home() {
            </div>
            
            {/*   Right Area: Map Visualization   */}
-           <div className="flex-1 min-h-[420px] relative bg-[#050505] overflow-hidden flex flex-col">
+           <div id="map-area" className="flex-1 min-h-[420px] relative bg-[#050505] overflow-hidden flex flex-col">
               {/*  Actual Map Container  */}
               <div id="map" className="absolute inset-0 z-0"></div>
               {/* 🧪 Test buttons + zone info */}
