@@ -22,10 +22,14 @@ export const createDatabase = ({ env = process.env, pool } = {}) => {
       CREATE TABLE IF NOT EXISTS sensor_readings (
         id SERIAL PRIMARY KEY,
         temperature REAL NOT NULL,
+        humidity REAL,
         source TEXT NOT NULL,
         created_at TEXT NOT NULL
       )
     `)
+    await postgresPool.query(
+      'ALTER TABLE sensor_readings ADD COLUMN IF NOT EXISTS humidity REAL'
+    )
   }
 
   const close = () => postgresPool.end()

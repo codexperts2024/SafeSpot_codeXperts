@@ -1,6 +1,7 @@
 import { createRoute } from '@hono/zod-openapi'
 import { z } from 'zod'
 import { getAlertLevel } from '../alerts.js'
+import { calculateHumidex } from '../humidex.js'
 import {
   EmptySensorReadingSchema,
   ErrorResponseSchema,
@@ -10,13 +11,21 @@ import {
   TemperatureBodySchema
 } from '../schemas/sensor.js'
 
-const createReadingPayload = (reading) => ({
-  ...reading,
-  alert: getAlertLevel(reading.temperature)
-})
+const createReadingPayload = (reading) => {
+  const calculatedHumidex = calculateHumidex(reading.temperature, reading.humidity)
+  const humidex = calculatedHumidex ?? reading.temperature
+
+  return {
+    ...reading,
+    humidex,
+    alert: getAlertLevel(humidex)
+  }
+}
 
 const EMPTY_READING = {
   temperature: null,
+  humidity: null,
+  humidex: null,
   timestamp: null,
   source: null,
   alert: null
@@ -108,8 +117,8 @@ const sensorOverrideRoute = createRoute({
 
 export const registerSensorRoutes = (app, sensorStore) => {
   app.openapi(sensorDataRoute, async (c) => {
-    const { temperature } = c.req.valid('json')
-    await sensorStore.save(temperature, 'sensor')
+    const { humidity, temperature } = c.req.valid('json')
+    await sensorStore.save(temperature, 'sensor', humidity ?? null)
     return c.json({ status: 'ok' }, 200)
   })
 
@@ -124,8 +133,8 @@ export const registerSensorRoutes = (app, sensorStore) => {
   })
 
   app.openapi(sensorOverrideRoute, async (c) => {
-    const { temperature } = c.req.valid('json')
-    await sensorStore.save(temperature, 'override')
+    const { humidity, temperature } = c.req.valid('json')
+    await sensorStore.save(temperature, 'override', humidity ?? null)
     return c.json({ status: 'overridden', temperature }, 200)
   })
 }

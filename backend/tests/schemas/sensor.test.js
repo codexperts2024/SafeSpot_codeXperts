@@ -20,6 +20,25 @@ describe('TemperatureBodySchema', () => {
     }
   })
 
+  it('accepts optional humidity percentage', () => {
+    const result = TemperatureBodySchema.safeParse({
+      temperature: 32.5,
+      humidity: 68.0
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects humidity outside 0–100%', () => {
+    expect(
+      TemperatureBodySchema.safeParse({ temperature: 32.5, humidity: 101 })
+        .success
+    ).toBe(false)
+    expect(
+      TemperatureBodySchema.safeParse({ temperature: 32.5, humidity: -1 })
+        .success
+    ).toBe(false)
+  })
+
   it('accepts zero as a valid temperature', () => {
     const result = TemperatureBodySchema.safeParse({ temperature: 0 })
     expect(result.success).toBe(true)
@@ -91,6 +110,8 @@ describe('AlertLevelSchema', () => {
 describe('SensorReadingSchema', () => {
   const validReading = {
     temperature: 35.2,
+    humidity: 68.0,
+    humidex: 46.1,
     timestamp: '2026-05-26T14:30:00.000Z',
     source: 'sensor',
     alert: {
@@ -130,6 +151,8 @@ describe('SensorReadingSchema', () => {
 describe('EmptySensorReadingSchema', () => {
   const emptyReading = {
     temperature: null,
+    humidity: null,
+    humidex: null,
     timestamp: null,
     source: null,
     alert: null
