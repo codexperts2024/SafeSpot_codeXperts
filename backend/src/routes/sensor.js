@@ -7,8 +7,8 @@ import {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  SensorReadingsQuerySchema,
   SensorReadingSchema,
+  SensorReadingsQuerySchema,
   StatusOkSchema,
   TemperatureBodySchema
 } from '../schemas/sensor.js'
@@ -99,9 +99,7 @@ const parseAlertsQuery = (query) => {
   const from = query.from
     ? parseCalendarDate(query.from, { endOfDay: false })
     : null
-  const to = query.to
-    ? parseCalendarDate(query.to, { endOfDay: true })
-    : null
+  const to = query.to ? parseCalendarDate(query.to, { endOfDay: true }) : null
 
   if ((query.from && !from) || (query.to && !to)) {
     return { error: 'Invalid date value' }
@@ -133,9 +131,7 @@ const parseSensorReadingsQuery = (query) => {
   const from = query.from
     ? parseCalendarDate(query.from, { endOfDay: false })
     : null
-  const to = query.to
-    ? parseCalendarDate(query.to, { endOfDay: true })
-    : null
+  const to = query.to ? parseCalendarDate(query.to, { endOfDay: true }) : null
 
   if ((query.from && !from) || (query.to && !to)) {
     return { error: 'Invalid date value' }

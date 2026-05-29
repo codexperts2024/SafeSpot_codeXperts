@@ -42,7 +42,8 @@ const SensorReadingSchema = z
       example: '2026-05-26T14:30:00.000Z'
     }),
     source: z.enum(['sensor']).openapi({
-      description: 'Reading source. Sensor API writes use the Raspberry Pi sensor.',
+      description:
+        'Reading source. Sensor API writes use the Raspberry Pi sensor.',
       example: 'sensor'
     }),
     alert: AlertLevelSchema
@@ -74,9 +75,7 @@ const EmptySensorReadingSchema = z
     humidity: z.nullable(z.number()).openapi({ example: null }),
     humidex: z.nullable(z.number()).openapi({ example: null }),
     timestamp: z.nullable(z.string()).openapi({ example: null }),
-    source: z
-      .nullable(z.enum(['sensor']))
-      .openapi({ example: null }),
+    source: z.nullable(z.enum(['sensor'])).openapi({ example: null }),
     alert: z.nullable(AlertLevelSchema).openapi({ example: null })
   })
   .openapi(
@@ -126,8 +125,8 @@ export {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  SensorReadingsQuerySchema,
   SensorReadingSchema,
+  SensorReadingsQuerySchema,
   StatusOkSchema,
   TemperatureBodySchema
 }

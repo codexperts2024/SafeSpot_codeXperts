@@ -20,5 +20,3 @@ serve({
   fetch: app.fetch,
   port
 })
-
-console.log(`SafeSpot backend running on http://localhost:${port}`)

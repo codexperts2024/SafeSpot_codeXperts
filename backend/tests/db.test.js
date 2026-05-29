@@ -47,7 +47,9 @@ describe('Database initialization', () => {
       expect.stringContaining('CREATE TABLE IF NOT EXISTS alert_logs')
     )
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('ALTER TABLE sensor_readings ADD COLUMN IF NOT EXISTS humidex REAL')
+      expect.stringContaining(
+        'ALTER TABLE sensor_readings ADD COLUMN IF NOT EXISTS humidex REAL'
+      )
     )
   })
 

@@ -7,8 +7,8 @@ import {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  SensorReadingsQuerySchema,
   SensorReadingSchema,
+  SensorReadingsQuerySchema,
   StatusOkSchema,
   TemperatureBodySchema
 } from '../../src/schemas/sensor.js'

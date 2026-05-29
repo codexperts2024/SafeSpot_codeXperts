@@ -24,12 +24,19 @@ const parseSqlCondition = (sql) => {
     }
 
     // Param — has value but no name, no queryChunks
-    if (chunk?.value !== undefined && !chunk?.name && !chunk?.queryChunks && !Array.isArray(chunk.value)) {
+    if (
+      chunk?.value !== undefined &&
+      !chunk?.name &&
+      !chunk?.queryChunks &&
+      !Array.isArray(chunk.value)
+    ) {
       value = chunk.value
     }
   }
 
-  return column && value !== undefined && operator ? { column, operator, value } : null
+  return column && value !== undefined && operator
+    ? { column, operator, value }
+    : null
 }
 
 // Recursively extract all conditions from a SQL object (handles and(), or(), etc.)
@@ -79,8 +86,12 @@ const resolveColumn = (dbColName, row) => {
 const createQuery = (rows) => {
   const conditions = []
   let descending = false
+  const resolveRows = () => {
+    const filtered = applyConditions(rows, conditions)
+    return descending ? [...filtered].reverse() : filtered
+  }
 
-  const chain = {
+  const chain = Object.assign(Promise.resolve().then(resolveRows), {
     where: (...args) => {
       for (const arg of args) {
         conditions.push(...extractConditions(arg))
@@ -91,7 +102,11 @@ const createQuery = (rows) => {
       for (const arg of args) {
         if (arg?.queryChunks) {
           for (const chunk of arg.queryChunks) {
-            if (chunk?.value && Array.isArray(chunk.value) && chunk.value.join('').toUpperCase().includes('DESC')) {
+            if (
+              chunk?.value &&
+              Array.isArray(chunk.value) &&
+              chunk.value.join('').toUpperCase().includes('DESC')
+            ) {
               descending = true
             }
           }
@@ -100,16 +115,9 @@ const createQuery = (rows) => {
       return chain
     },
     limit: (count) => {
-      const filtered = applyConditions(rows, conditions)
-      const result = descending ? [...filtered].reverse() : filtered
-      return Promise.resolve(result.slice(0, count))
-    },
-    then: (resolve, reject) => {
-      const filtered = applyConditions(rows, conditions)
-      const result = descending ? [...filtered].reverse() : filtered
-      return Promise.resolve(result).then(resolve, reject)
+      return Promise.resolve(resolveRows().slice(0, count))
     }
-  }
+  })
 
   return chain
 }

@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, lte, lt } from 'drizzle-orm'
-import { calculateHumidex } from './humidex.js'
+import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { getAlertLevel } from './alerts.js'
 import { createAlertStore } from './alerts-store.js'
+import { calculateHumidex } from './humidex.js'
 import { sensorReadings } from './schema.js'
 
 const toReadingPayload = (reading) => {
@@ -72,15 +72,13 @@ export const createSensorStore = (database, { alertStore } = {}) => {
         : true
 
     if (shouldStore) {
-      await database
-        .insert(sensorReadings)
-        .values({
-          temperature,
-          humidity,
-          humidex,
-          source,
-          createdAt
-        })
+      await database.insert(sensorReadings).values({
+        temperature,
+        humidity,
+        humidex,
+        source,
+        createdAt
+      })
     }
 
     if (alert.level !== 'safe') {
