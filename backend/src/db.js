@@ -1,43 +1,66 @@
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { sensorReadings } from './schema.js'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import pg from 'pg'
 
-const MOCK_READINGS = [
-  // safe (<30°C)
-  { temperature: 21.3, source: 'sensor' },
-  { temperature: 23.7, source: 'sensor' },
-  { temperature: 25.0, source: 'override' },
-  { temperature: 26.4, source: 'sensor' },
-  { temperature: 28.1, source: 'sensor' },
-  { temperature: 29.5, source: 'override' },
-  // caution (30–34°C)
-  { temperature: 30.2, source: 'sensor' },
-  { temperature: 31.8, source: 'sensor' },
-  { temperature: 33.0, source: 'override' },
-  { temperature: 34.5, source: 'sensor' },
-  // danger (35–39°C)
-  { temperature: 35.7, source: 'sensor' },
-  { temperature: 36.9, source: 'sensor' },
-  { temperature: 38.0, source: 'override' },
-  { temperature: 39.2, source: 'sensor' },
-  // extreme (≥40°C)
-  { temperature: 40.5, source: 'sensor' },
-  { temperature: 41.8, source: 'sensor' },
-  { temperature: 42.3, source: 'override' },
-  { temperature: 43.1, source: 'sensor' },
-  // latest — back to caution, simulating a cooling trend
-  { temperature: 32.4, source: 'sensor' },
-  { temperature: 29.8, source: 'override' }
-]
+const { Pool } = pg
 
-export const createDatabase = ({ filename = 'safespot.db' } = {}) => {
-  const sqlite = new Database(filename)
-  const db = drizzle(sqlite)
+const isLocalHost = (host) =>
+  ['localhost', '127.0.0.1', '::1'].includes(host ?? '')
 
-  const initializeDatabase = () => {
-    sqlite.exec(`
+const parseBoolean = (value) => {
+  if (value === undefined) return undefined
+  return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase())
+}
+
+const sslConfig = (env, connectionString) => {
+  const explicitSsl = parseBoolean(env.PG_SSL)
+  if (explicitSsl === false) return false
+  if (explicitSsl === true) return { rejectUnauthorized: false }
+
+  if (connectionString) {
+    const { hostname } = new URL(connectionString)
+    return isLocalHost(hostname) ? false : { rejectUnauthorized: false }
+  }
+
+  return isLocalHost(env.PG_HOSTNAME) ? false : { rejectUnauthorized: false }
+}
+
+export const createPostgresPoolConfig = (env = process.env) => {
+  const connectionString = env.PG_URL ?? env.DATABASE_URL
+  if (connectionString) {
+    return {
+      connectionString,
+      ssl: sslConfig(env, connectionString)
+    }
+  }
+
+  const missing = ['PG_HOSTNAME', 'PG_DATABASE', 'PG_USERNAME', 'PG_PASSWORD']
+    .filter((key) => !env[key])
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing PostgreSQL configuration: ${missing.join(', ')}. ` +
+        'Set PG_URL or PG_HOSTNAME, PG_DATABASE, PG_USERNAME, and PG_PASSWORD.'
+    )
+  }
+
+  return {
+    host: env.PG_HOSTNAME,
+    port: Number.parseInt(env.PG_PORT ?? '5432', 10),
+    database: env.PG_DATABASE,
+    user: env.PG_USERNAME,
+    password: env.PG_PASSWORD,
+    ssl: sslConfig(env)
+  }
+}
+
+export const createDatabase = ({ env = process.env, pool } = {}) => {
+  const postgresPool = pool ?? new Pool(createPostgresPoolConfig(env))
+  const db = drizzle(postgresPool)
+
+  const initializeDatabase = async () => {
+    await postgresPool.query(`
       CREATE TABLE IF NOT EXISTS sensor_readings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         temperature REAL NOT NULL,
         source TEXT NOT NULL,
         created_at TEXT NOT NULL
@@ -45,26 +68,7 @@ export const createDatabase = ({ filename = 'safespot.db' } = {}) => {
     `)
   }
 
-  const seedMockData = () => {
-    const rowCount = sqlite
-      .prepare('SELECT COUNT(*) AS count FROM sensor_readings')
-      .get().count
+  const close = () => postgresPool.end()
 
-    if (rowCount > 0) return 0
-
-    const now = Date.now()
-    const readings = MOCK_READINGS.map((entry, i) => ({
-      ...entry,
-      createdAt: new Date(
-        now - (MOCK_READINGS.length - 1 - i) * 45 * 60 * 1000
-      ).toISOString()
-    }))
-
-    db.insert(sensorReadings).values(readings).run()
-
-    console.log(`Seeded ${readings.length} mock sensor readings`)
-    return readings.length
-  }
-
-  return { db, sqlite, initializeDatabase, seedMockData }
+  return { db, pool: postgresPool, initializeDatabase, close }
 }

@@ -43,7 +43,7 @@ const sensorDataRoute = createRoute({
   description:
     'Stores a new temperature reading from the Raspberry Pi sensor,' +
     ' evaluates the alert level based on danger thresholds, and stores' +
-    ' the reading in SQLite with `source: sensor`.',
+    ' the reading in PostgreSQL with `source: sensor`.',
   operationId: 'postSensorData',
   request: {
     body: temperatureRequestBody
@@ -65,7 +65,7 @@ const sensorLatestRoute = createRoute({
   tags: ['Sensor Data'],
   summary: 'Get the latest temperature reading',
   description:
-    'Returns the most recent temperature reading from SQLite with' +
+    'Returns the most recent temperature reading from PostgreSQL with' +
     ' its alert level, timestamp, and source. Used by the frontend' +
     ' to display live data on the dashboard.',
   operationId: 'getSensorLatest',
@@ -90,7 +90,7 @@ const sensorOverrideRoute = createRoute({
     'Allows testing without the physical sensor. Simulates a' +
     ' temperature reading by manually setting a value, useful for' +
     ' testing alert levels and frontend behavior. Stores the reading' +
-    ' in SQLite with `source: override`.',
+    ' in PostgreSQL with `source: override`.',
   operationId: 'postSensorOverride',
   request: {
     body: temperatureRequestBody
@@ -109,12 +109,12 @@ const sensorOverrideRoute = createRoute({
 export const registerSensorRoutes = (app, sensorStore) => {
   app.openapi(sensorDataRoute, async (c) => {
     const { temperature } = c.req.valid('json')
-    sensorStore.save(temperature, 'sensor')
+    await sensorStore.save(temperature, 'sensor')
     return c.json({ status: 'ok' }, 200)
   })
 
-  app.openapi(sensorLatestRoute, (c) => {
-    const latestReading = sensorStore.getLatest()
+  app.openapi(sensorLatestRoute, async (c) => {
+    const latestReading = await sensorStore.getLatest()
 
     if (!latestReading) {
       return c.json(EMPTY_READING, 200)
@@ -125,7 +125,7 @@ export const registerSensorRoutes = (app, sensorStore) => {
 
   app.openapi(sensorOverrideRoute, async (c) => {
     const { temperature } = c.req.valid('json')
-    sensorStore.save(temperature, 'override')
+    await sensorStore.save(temperature, 'override')
     return c.json({ status: 'overridden', temperature }, 200)
   })
 }

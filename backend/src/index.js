@@ -1,19 +1,18 @@
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
 import { createDatabase } from './db.js'
+import { loadEnvironment } from './load-env.js'
+
+loadEnvironment()
 
 const DEFAULT_PORT = 8000
 const parsedPort = Number.parseInt(process.env.PORT ?? `${DEFAULT_PORT}`, 10)
 const port =
   Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : DEFAULT_PORT
 
-const { db, initializeDatabase, seedMockData } = createDatabase()
+const { db, initializeDatabase } = createDatabase()
 
-initializeDatabase()
-
-if (process.env.NODE_ENV !== 'production') {
-  seedMockData()
-}
+await initializeDatabase()
 
 const app = createApp({ db })
 

@@ -31,7 +31,7 @@ Unlike weather apps that report a city-wide average, SafeSpot measures the **act
 | Name       | Role                                             |
 | ---------- | ------------------------------------------------ |
 | **Gary**   | Hardware — Raspberry Pi & Temperature Sensor     |
-| **Marcos** | Backend — Node.js (Hono + Drizzle + SQLite)      |
+| **Marcos** | Backend — Node.js (Hono + Drizzle + PostgreSQL)  |
 | **Paul**   | Frontend — Next.js, Leaflet.js Map Integration   |
 | **Seulgi** | Frontend — UI/UX Design, Alert System            |
 | **Arun**   | Frontend — GPS Location, Nearest Shelter Routing |
@@ -43,7 +43,7 @@ Unlike weather apps that report a city-wide average, SafeSpot measures the **act
 | Layer        | Technology                                       |
 | ------------ | ------------------------------------------------ |
 | Frontend     | Next.js, Tailwind CSS, Leaflet.js                |
-| Backend      | Hono.js (Node.js) + Drizzle ORM + SQLite         |
+| Backend      | Hono.js (Node.js) + Drizzle ORM + PostgreSQL     |
 | Deployment   | Render (backend) · Docker                        |
 | Hardware     | Raspberry Pi + Temperature Sensor                |
 | Map Library  | Leaflet.js with GeoJSON layers                   |
@@ -120,7 +120,7 @@ Unlike weather apps that report a city-wide average, SafeSpot measures the **act
 Raspberry Pi (Temperature Sensor — deployed in heat island zone)
         │
         ▼  POST /api/sensor-data  {"temperature": 36.2}
-Hono Backend (Node.js + Drizzle + SQLite) — deployed on Render
+Hono Backend (Node.js + Drizzle + PostgreSQL) — deployed on Render
         │  stores reading with timestamp + source
         ▼  GET /api/sensor-latest (every 5s)
 Next.js Frontend
@@ -176,7 +176,7 @@ SafeSpot/
     │   ├── sensor-store.js # DB read/write logic
     │   ├── alerts.js       # getAlertLevel() — safe/caution/danger/extreme
     │   ├── schema.js       # Drizzle schema (sensor_readings table)
-    │   └── db.js           # SQLite init + mock data seeding
+    │   └── db.js           # PostgreSQL pool + table initialization
     └── tests/              # Vitest test suite
 ```
 

@@ -1,116 +1,68 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { createDatabase } from '../src/db.js'
-import { sensorReadings } from '../src/schema.js'
+import { describe, expect, it, vi } from 'vitest'
+import { createDatabase, createPostgresPoolConfig } from '../src/db.js'
+
+describe('PostgreSQL configuration', () => {
+  it('uses PG_URL when provided', () => {
+    const config = createPostgresPoolConfig({
+      PG_URL: 'postgres://user:pass@example.com:5432/safespot'
+    })
+
+    expect(config.connectionString).toBe(
+      'postgres://user:pass@example.com:5432/safespot'
+    )
+    expect(config.ssl).toEqual({ rejectUnauthorized: false })
+  })
+
+  it('falls back to individual PG_* values', () => {
+    const config = createPostgresPoolConfig({
+      PG_HOSTNAME: 'localhost',
+      PG_PORT: '5433',
+      PG_DATABASE: 'sensor_readings',
+      PG_USERNAME: 'sensor_readings_user',
+      PG_PASSWORD: 'secret'
+    })
+
+    expect(config).toEqual({
+      host: 'localhost',
+      port: 5433,
+      database: 'sensor_readings',
+      user: 'sensor_readings_user',
+      password: 'secret',
+      ssl: false
+    })
+  })
+
+  it('throws when required values are missing', () => {
+    expect(() => createPostgresPoolConfig({})).toThrow(
+      'Missing PostgreSQL configuration'
+    )
+  })
+})
 
 describe('Database initialization', () => {
-  let sqlite
-  let db
-  let instance
+  it('creates the sensor_readings table', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({}),
+      end: vi.fn().mockResolvedValue()
+    }
+    const instance = createDatabase({ pool })
 
-  beforeEach(() => {
-    instance = createDatabase({ filename: ':memory:' })
-    sqlite = instance.sqlite
-    db = instance.db
+    await instance.initializeDatabase()
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE IF NOT EXISTS sensor_readings')
+    )
   })
 
-  describe('initializeDatabase', () => {
-    it('creates the sensor_readings table', () => {
-      instance.initializeDatabase()
+  it('closes the PostgreSQL pool', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({}),
+      end: vi.fn().mockResolvedValue()
+    }
+    const instance = createDatabase({ pool })
 
-      const tables = sqlite
-        .prepare(
-          'SELECT name FROM sqlite_master' +
-            " WHERE type='table' AND name='sensor_readings'"
-        )
-        .all()
-      expect(tables).toHaveLength(1)
-    })
+    await instance.close()
 
-    it('does not fail when called twice (idempotent)', () => {
-      instance.initializeDatabase()
-      instance.initializeDatabase()
-
-      const tables = sqlite
-        .prepare(
-          'SELECT name FROM sqlite_master' +
-            " WHERE type='table' AND name='sensor_readings'"
-        )
-        .all()
-      expect(tables).toHaveLength(1)
-    })
-
-    it('creates table with correct columns', () => {
-      instance.initializeDatabase()
-
-      const info = sqlite.pragma('table_info(sensor_readings)')
-      const columns = info.map((col) => col.name)
-      expect(columns).toContain('id')
-      expect(columns).toContain('temperature')
-      expect(columns).toContain('source')
-      expect(columns).toContain('created_at')
-    })
-  })
-
-  describe('seedMockData', () => {
-    it('seeds data into an empty table', () => {
-      instance.initializeDatabase()
-
-      const count = instance.seedMockData()
-      expect(count).toBe(20)
-
-      const rows = db
-        .select()
-        .from(sensorReadings)
-        .orderBy(sensorReadings.id)
-        .all()
-      expect(rows).toHaveLength(20)
-    })
-
-    it('does not seed when table already has data', () => {
-      instance.initializeDatabase()
-      instance.seedMockData()
-
-      const count = instance.seedMockData()
-      expect(count).toBe(0)
-
-      const rows = db
-        .select()
-        .from(sensorReadings)
-        .orderBy(sensorReadings.id)
-        .all()
-      expect(rows).toHaveLength(20)
-    })
-
-    it('seeds readings with correct fields', () => {
-      instance.initializeDatabase()
-      instance.seedMockData()
-
-      const rows = db
-        .select()
-        .from(sensorReadings)
-        .orderBy(sensorReadings.id)
-        .all()
-      for (const row of rows) {
-        expect(typeof row.temperature).toBe('number')
-        expect(['sensor', 'override']).toContain(row.source)
-        expect(typeof row.createdAt).toBe('string')
-      }
-    })
-
-    it('seeds readings with timestamps in chronological order', () => {
-      instance.initializeDatabase()
-      instance.seedMockData()
-
-      const rows = db
-        .select()
-        .from(sensorReadings)
-        .orderBy(sensorReadings.id)
-        .all()
-      for (let i = 1; i < rows.length; i++) {
-        expect(new Date(rows[i].createdAt).getTime()).toBeGreaterThanOrEqual(
-          new Date(rows[i - 1].createdAt).getTime()
-        )
-      }
-    })
+    expect(pool.end).toHaveBeenCalled()
   })
 })

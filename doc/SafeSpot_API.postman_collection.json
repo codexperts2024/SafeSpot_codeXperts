@@ -2,17 +2,17 @@
   "info": {
     "_postman_id": "safespot-toronto-api",
     "name": "SafeSpot Toronto API",
-    "description": "Backend API for SafeSpot Toronto — real-time extreme weather safety app. Hono.js + SQLite sensor readings with alert levels.",
+    "description": "Backend API for SafeSpot Toronto — real-time extreme weather safety app. Hono.js + PostgreSQL sensor readings with alert levels.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "base_url",
-      "value": "localhost:8000"
+      "value": "safespot-backend-bbn6.onrender.com"
     },
     {
       "key": "protocol",
-      "value": "http"
+      "value": "https"
     }
   ],
   "item": [
