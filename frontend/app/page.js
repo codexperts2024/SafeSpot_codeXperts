@@ -192,6 +192,8 @@ export default function Home() {
   const [locationDetail, setLocationDetail] = useState('');
   const [locationFull, setLocationFull] = useState('');
   const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [toastAlert, setToastAlert] = useState(null);
+  const toastTimeoutRef = useRef(null);
 
   const getBannerAlert = () => {
     if (activeTemp === null) return null;
@@ -218,6 +220,23 @@ export default function Home() {
     if (level === prevLevel.current) return;
     prevLevel.current = level;
     playAlarmSound(level);
+
+    // In-app toast
+    setToastAlert({ level, temp: activeTemp });
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setToastAlert(null), 5000);
+
+    // Browser notification (works on desktop + iOS PWA 16.4+)
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      } else if (Notification.permission === 'granted') {
+        new Notification(`SafeSpot: ${level} Heat Alert`, {
+          body: `${activeTemp?.toFixed(1)}°C detected — find a cooling centre!`,
+          icon: '/favicon.svg'
+        });
+      }
+    }
   }, [activeTemp]);
 
   // Poll Sensor Data
@@ -812,7 +831,23 @@ export default function Home() {
         </div>
       )}
 
-      
+      {/* Temperature alert toast */}
+      {toastAlert && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9998] max-w-sm w-[90vw] bg-[#1a0f0a] border border-orange-500/50 rounded-2xl px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.8)] flex items-center gap-3 animate-[fade-up_0.3s_ease-out_forwards]">
+          <span className="text-2xl shrink-0">
+            {toastAlert.level === 'Extreme' ? '🔴' : toastAlert.level === 'Danger' ? '🚨' : '⚠️'}
+          </span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-semibold text-[13px] text-white">Heat Alert: {toastAlert.level}</span>
+            <span className="text-[11px] text-neutral-400">{toastAlert.temp?.toFixed(1)}°C — seek cooling immediately</span>
+          </div>
+          <button onClick={() => setToastAlert(null)} className="ml-auto shrink-0 p-1.5 text-neutral-500 hover:text-white transition-colors">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      )}
+
+
 
 
       {/*   Floating Download Actions for HTML Version   */}
@@ -901,14 +936,14 @@ export default function Home() {
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 [background-image:radial-gradient(circle_at_20%_20%,rgba(255,79,2,0.3)_0%,rgba(255,79,2,0)_50%),radial-gradient(circle_at_80%_80%,rgba(0,173,189,0.28)_0%,rgba(0,173,189,0)_50%),linear-gradient(135deg,rgba(0,0,0,0.96)_0%,rgba(255,79,2,0.18)_40%,rgba(0,0,0,0.9)_50%,rgba(0,173,189,0.18)_60%,rgba(0,0,0,0.95)_100%)] [background-position:0%_0%,100%_100%,0%_50%] [background-size:180%_180%,180%_180%,250%_250%] before:absolute before:left-[-5%] before:top-[-20%] before:h-[600px] before:w-[600px] before:rounded-full before:bg-[radial-gradient(circle,rgba(255,79,2,0.25)_0%,transparent_65%)] before:content-[''] before:[filter:blur(4px)] after:absolute after:bottom-[-15%] after:right-[-5%] after:h-[600px] after:w-[600px] after:rounded-full after:bg-[radial-gradient(circle,rgba(0,173,189,0.25)_0%,transparent_65%)] after:content-[''] after:[filter:blur(3px)] motion-safe:animate-[hero-gradient-flow_20s_ease-in-out_infinite] motion-safe:before:animate-[hero-glow-drift_12s_ease-in-out_infinite] motion-safe:after:animate-[hero-glow-drift-reverse_14s_ease-in-out_infinite] will-change-[background-position]"></div>
         
         {/*  Content Container  */}
-        <div className="relative z-10 w-full flex flex-col items-start py-32 px-6 text-left max-w-[1200px] mx-auto border-b border-white/[0.05]">
+        <div className="relative z-10 w-full flex flex-col items-start pt-16 pb-8 md:py-32 px-6 text-left max-w-[1200px] mx-auto border-b border-white/[0.05]">
           <p className="text-sm uppercase tracking-widest text-orange-400 mb-6 font-semibold">Why SafeSpot?</p>
         <h1 className="text-4xl md:text-[56px] font-medium tracking-tight max-w-[900px] leading-[1.15] mb-8 text-white text-left">
           <span className="inline-block opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]">In 2021, a heat dome killed</span><br/>
           <span className="inline-block opacity-0 animate-[fade-up_0.8s_ease-out_0.4s_forwards]">570 people in British Columbia.</span>
         </h1>
         
-        <div className="flex flex-col md:flex-row items-start md:items-end justify-between w-full mt-4 mb-16 gap-8 md:gap-0">
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between w-full mt-2 mb-4 md:mt-4 md:mb-16 gap-6 md:gap-0">
           <div className="flex flex-col gap-4 text-left max-w-[600px]">
              <p className="text-lg md:text-xl text-neutral-400 leading-relaxed">
                Many victims lived near cooling centres — but had no way of knowing. If they had received a real-time alert and been guided to the nearest safe space, more lives could have been saved.
@@ -919,17 +954,17 @@ export default function Home() {
           </div>
           
           <div className="flex flex-col gap-3 shrink-0 md:mb-1">
-            <a href="https://www.cbc.ca/news/canada/british-columbia/bc-heat-dome-sudden-deaths-570-1.6122316" target="_blank" className="cite-item opacity-0 translate-y-4 transition-all duration-500 flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 group">
+            <a href="https://www.cbc.ca/news/canada/british-columbia/bc-heat-dome-sudden-deaths-570-1.6122316" target="_blank" className="cite-item md:opacity-0 md:translate-y-4 transition-all duration-500 flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 group">
               <span className="text-xs font-semibold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full w-[60px] text-center">CBC</span>
               <span className="text-neutral-300">B.C. Sudden Deaths (2021)</span>
               <i data-lucide="arrow-up-right" className="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
             </a>
-            <a href="https://climateinstitute.ca/reports/extreme-heat-in-canada/" target="_blank" className="cite-item opacity-0 translate-y-4 transition-all duration-500 [transition-delay:150ms] flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 group">
+            <a href="https://climateinstitute.ca/reports/extreme-heat-in-canada/" target="_blank" className="cite-item md:opacity-0 md:translate-y-4 transition-all duration-500 [transition-delay:150ms] flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 group">
               <span className="text-xs font-semibold bg-cyan-500/20 text-cyan-400 px-2.5 py-1 rounded-full w-[60px] text-center">Report</span>
               <span className="text-neutral-300">Extreme Heat in Canada (2023)</span>
               <i data-lucide="arrow-up-right" className="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
             </a>
-            <a href="https://www.cbc.ca/news/canada/montreal/heat-wave-death-toll-1.4740031" target="_blank" className="cite-item opacity-0 translate-y-4 transition-all duration-500 [transition-delay:300ms] flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 group">
+            <a href="https://www.cbc.ca/news/canada/montreal/heat-wave-death-toll-1.4740031" target="_blank" className="cite-item md:opacity-0 md:translate-y-4 transition-all duration-500 [transition-delay:300ms] flex items-center gap-3 text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 rounded-full pl-3 pr-4 py-2 group">
               <span className="text-xs font-semibold bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full w-[60px] text-center">CBC</span>
               <span className="text-neutral-300">Montreal Heat Wave (2018)</span>
               <i data-lucide="arrow-up-right" className="w-4 h-4 text-neutral-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
@@ -938,6 +973,8 @@ export default function Home() {
         </div>
         
         </div>
+        {/* Fade hero to black */}
+        <div className="absolute bottom-0 inset-x-0 h-64 bg-gradient-to-b from-transparent to-[#000000] z-[5] pointer-events-none"></div>
       </section>
 
       {/*   Sponsors & Partners   */}
@@ -948,13 +985,13 @@ export default function Home() {
       <section id="how-it-works-simple" className="w-full relative h-[260vh] bg-[#000000]">
         <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden border-b border-white/[0.05]">
           <div className="w-full max-w-[1200px] mx-auto px-6">
-            <div className="mb-20">
-              <p className="text-sm uppercase tracking-widest text-orange-400 mb-4">How It Works</p>
-              <h2 className="text-4xl md:text-[40px] font-medium tracking-tight text-white mb-4">From Sensor to Safety</h2>
+            <div className="mb-6 md:mb-20">
+              <p className="text-sm uppercase tracking-widest text-orange-400 mb-3 md:mb-4">How It Works</p>
+              <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-3 md:mb-4">From Sensor to Safety</h2>
               <p className="text-[15px] text-neutral-400 leading-relaxed">Unlike weather apps that report a city-wide average, SafeSpot measures the <span className="text-orange-400 font-medium">actual temperature where you are</span>.</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16 relative">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-8 mb-4 md:mb-16 relative">
               {/*  Item 1  */}
               <div className="hw-scroll-item flex flex-col group opacity-0 transition-all duration-700 translate-y-8 pointer-events-none" data-index="0">
                 <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
@@ -1322,43 +1359,46 @@ export default function Home() {
               <div id="map" className="absolute inset-0 z-0"></div>
               {/* 🧪 Test buttons + zone info */}
               <div
-                className="absolute top-4 right-4 z-[1000] flex flex-col items-end gap-2 pointer-events-auto"
+                className="absolute top-4 left-4 z-[1000] flex flex-col items-start gap-2 pointer-events-auto"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}
               >
-                <div className="flex flex-row flex-wrap justify-end gap-1.5">
+                <div className="flex flex-row flex-wrap justify-start gap-1.5">
                   <button type="button" onClick={() => setSimulatedTemp(30)} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-yellow-500/90 hover:bg-yellow-400 text-black font-bold backdrop-blur-sm transition-transform active:scale-95">⚠️ 30°C</button>
                   <button type="button" onClick={() => setSimulatedTemp(36)} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-orange-600/90 hover:bg-orange-500 text-white font-bold backdrop-blur-sm transition-transform active:scale-95">🚨 36°C</button>
                   <button type="button" onClick={() => setSimulatedTemp(41)} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-red-700/90 hover:bg-red-600 text-white font-bold backdrop-blur-sm transition-transform active:scale-95">🔴 41°C</button>
                   <button type="button" onClick={() => { setSimulatedTemp(null); setSensorTemp(20.0); if (fetchSensorRef.current) fetchSensorRef.current(); }} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-zinc-700/90 hover:bg-zinc-600 text-white font-bold backdrop-blur-sm transition-transform active:scale-95 ring-1 ring-white/20">✅ Reset</button>
                 </div>
 
-                {/* Heat zone level indicator */}
-                {userPos && currentZone && (
-                  <div className="bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-neutral-200 shadow-[0_4px_12px_rgba(0,0,0,0.5)] flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Zone</span>
-                    <span className={`font-bold uppercase ${currentZone === 'high' ? 'text-red-400' : currentZone === 'medium' ? 'text-orange-400' : 'text-yellow-400'}`}>
-                      {currentZone}
-                    </span>
-                    <span className="text-[14px]">{currentZone === 'high' ? '🔴' : currentZone === 'medium' ? '🟠' : '🟡'}</span>
-                  </div>
-                )}
-
-                {/* Direction arrow synced with selected shelter */}
-                {(() => {
-                  const sel = selectedShelterType === 'cooling' ? nearestCooling : selectedShelterType === 'library' ? nearestLibrary : null;
-                  if (!userPos || !sel) return null;
-                  const bearing = getBearing(userPos.lat, userPos.lng, sel.lat, sel.lng);
-                  return (
+                {/* Zone + bearing: stacked on mobile, side-by-side on desktop */}
+                <div className="flex flex-col md:flex-row gap-2">
+                  {/* Heat zone level indicator */}
+                  {userPos && currentZone && (
                     <div className="bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-neutral-200 shadow-[0_4px_12px_rgba(0,0,0,0.5)] flex items-center gap-2">
-                      <span style={{ transform: `rotate(${bearing}deg)`, display: 'inline-block', lineHeight: 1 }} className="text-[16px]">↑</span>
-                      <span className="font-bold text-cyan-400">{bearingToCompass(bearing)}</span>
-                      <span className="text-neutral-400">{sel.type === 'cooling' ? '❄️' : '📚'}</span>
-                      <span className="text-neutral-300">{sel.distance.toFixed(1)} km</span>
+                      <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Zone</span>
+                      <span className={`font-bold uppercase ${currentZone === 'high' ? 'text-red-400' : currentZone === 'medium' ? 'text-orange-400' : 'text-yellow-400'}`}>
+                        {currentZone}
+                      </span>
+                      <span className="text-[14px]">{currentZone === 'high' ? '🔴' : currentZone === 'medium' ? '🟠' : '🟡'}</span>
                     </div>
-                  );
-                })()}
+                  )}
+
+                  {/* Direction arrow synced with selected shelter */}
+                  {(() => {
+                    const sel = selectedShelterType === 'cooling' ? nearestCooling : selectedShelterType === 'library' ? nearestLibrary : null;
+                    if (!userPos || !sel) return null;
+                    const bearing = getBearing(userPos.lat, userPos.lng, sel.lat, sel.lng);
+                    return (
+                      <div className="bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-neutral-200 shadow-[0_4px_12px_rgba(0,0,0,0.5)] flex items-center gap-2">
+                        <span style={{ transform: `rotate(${bearing}deg)`, display: 'inline-block', lineHeight: 1 }} className="text-[16px]">↑</span>
+                        <span className="font-bold text-cyan-400">{bearingToCompass(bearing)}</span>
+                        <span className="text-neutral-400">{sel.type === 'cooling' ? '❄️' : '📚'}</span>
+                        <span className="text-neutral-300">{sel.distance.toFixed(1)} km</span>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* 🗺️ Horizontal Map Legend Floating Overlay — desktop only */}
