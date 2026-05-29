@@ -6,7 +6,7 @@
 
 A real-time web app that helps Toronto communities stay safe during extreme heat events — combining live Raspberry Pi sensor data, urban heat island mapping, GPS-based routing, and cross-checked risk alerts.
 
-https://safespot-frontend-qahl.onrender.com/
+[https://safespot-frontend-qahl.onrender.com/](https://safe-spot-seneca-hackathon.vercel.app)
 
 <img width="800" height="496" alt="ScreenRecording2026-05-26at10 54 55PM-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/61e139aa-5ca2-4739-b6bf-bbd86bcee525" />
 
