@@ -8,6 +8,7 @@ const toReadingPayload = (reading) => {
 
   return {
     temperature: reading.temperature,
+    humidity: reading.humidity ?? null,
     timestamp: reading.createdAt,
     source: reading.source
   }
@@ -21,19 +22,21 @@ export const createSensorStore = (database) => {
     )
   }
 
-  const save = async (temperature, source) => {
+  const save = async (temperature, source, humidity = null) => {
     const createdAt = new Date().toISOString()
 
     await database
       .insert(sensorReadings)
       .values({
         temperature,
+        humidity,
         source,
         createdAt
       })
 
     return {
       temperature,
+      humidity,
       timestamp: createdAt,
       source
     }

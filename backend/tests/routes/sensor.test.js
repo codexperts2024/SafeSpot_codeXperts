@@ -31,6 +31,25 @@ describe('Sensor Routes', () => {
 
       expect(store.getLatest().source).toBe('sensor')
       expect(store.getLatest().temperature).toBe(30.0)
+      expect(store.getLatest().humidity).toBeNull()
+    })
+
+    it('accepts and stores humidity from sensor payloads', async () => {
+      const store = createMockStore()
+      const app = createApp({ sensorStore: store })
+
+      const res = await app.request('/api/sensor-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ temperature: 32.5, humidity: 68.0 })
+      })
+
+      expect(res.status).toBe(200)
+      expect(store.getLatest()).toMatchObject({
+        temperature: 32.5,
+        humidity: 68.0,
+        source: 'sensor'
+      })
     })
 
     it('returns 400 when temperature is missing', async () => {
@@ -71,6 +90,8 @@ describe('Sensor Routes', () => {
       const body = await res.json()
       expect(body).toEqual({
         temperature: null,
+        humidity: null,
+        humidex: null,
         timestamp: null,
         source: null,
         alert: null
@@ -88,9 +109,26 @@ describe('Sensor Routes', () => {
       const body = await res.json()
       expect(body.temperature).toBe(37.5)
       expect(body.source).toBe('sensor')
+      expect(body.humidity).toBeNull()
+      expect(body.humidex).toBe(37.5)
+      expect(body.alert.level).toBe('caution')
+    })
+
+    it('returns humidity, humidex, and humidex-based alert metadata', async () => {
+      const store = createMockStore()
+      store.save(32.5, 'sensor', 68.0)
+      const app = createApp({ sensorStore: store })
+
+      const res = await app.request('/api/sensor-latest')
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.temperature).toBe(32.5)
+      expect(body.humidity).toBe(68.0)
+      expect(body.humidex).toBe(46.1)
       expect(body.alert).toEqual({
-        level: 'danger',
-        message: 'Extreme Heat Warning - Find a Cool Space Now'
+        level: 'extreme',
+        message: 'Extreme Danger - Seek cooling immediately'
       })
     })
 

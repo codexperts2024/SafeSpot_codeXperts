@@ -17,6 +17,18 @@ describe('createSensorStore', () => {
 
       expect(result).toEqual({
         temperature: 25.5,
+        humidity: null,
+        timestamp: expect.any(String),
+        source: 'sensor'
+      })
+    })
+
+    it('saves humidity when provided', async () => {
+      const result = await store.save(32.5, 'sensor', 68.0)
+
+      expect(result).toEqual({
+        temperature: 32.5,
+        humidity: 68.0,
         timestamp: expect.any(String),
         source: 'sensor'
       })
@@ -34,6 +46,7 @@ describe('createSensorStore', () => {
       const rows = db.rows
       expect(rows).toHaveLength(1)
       expect(rows[0].temperature).toBe(28.0)
+      expect(rows[0].humidity).toBeNull()
       expect(rows[0].source).toBe('sensor')
     })
 
@@ -70,11 +83,12 @@ describe('createSensorStore', () => {
     })
 
     it('returns a payload with correct structure', async () => {
-      await store.save(25.0, 'sensor')
+      await store.save(25.0, 'sensor', 55.0)
 
       const latest = await store.getLatest()
       expect(latest).toEqual({
         temperature: 25.0,
+        humidity: 55.0,
         timestamp: expect.any(String),
         source: 'sensor'
       })

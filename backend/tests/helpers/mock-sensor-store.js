@@ -2,9 +2,10 @@ export const createMockStore = () => {
   const savedReadings = []
 
   return {
-    save: (temperature, source) => {
+    save: (temperature, source, humidity = null) => {
       const reading = {
         temperature,
+        humidity,
         timestamp: new Date().toISOString(),
         source
       }
