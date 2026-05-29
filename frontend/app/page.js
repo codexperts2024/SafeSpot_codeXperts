@@ -560,7 +560,8 @@ export default function Home() {
         let accumulated = 0;
         const STICK_THRESHOLD = 187; // wheel delta px before releasing
 
-        // Wheel intercept for stick effect — also stops Lenis during stick
+        // Wheel intercept for stick — e.preventDefault() blocks Lenis wheel input.
+        // Nav clicks are programmatic (RAF-based), so they bypass this entirely.
         window.addEventListener('wheel', (e) => {
           if (!isStuck) return;
           e.preventDefault();
@@ -568,7 +569,6 @@ export default function Home() {
           if (accumulated >= STICK_THRESHOLD) {
             isStuck = false;
             accumulated = 0;
-            window.__lenis?.start();
           }
         }, { passive: false });
 
@@ -614,7 +614,6 @@ export default function Home() {
           if (allVisible && !wasAllVisible) {
             isStuck = true;
             accumulated = 0;
-            window.__lenis?.stop();
             if (btn && !btn.dataset.clicked) {
               btn.addEventListener('click', () => {
                 btn.classList.remove('btn-glow');
@@ -624,7 +623,6 @@ export default function Home() {
           }
           if (!allVisible) {
             isStuck = false;
-            window.__lenis?.start();
           }
           wasAllVisible = allVisible;
         }, { passive: true });
