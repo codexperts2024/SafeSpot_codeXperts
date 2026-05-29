@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Script from 'next/script';
 import AlertBanner from '@/components/AlertBanner';
+import LogViewer from '@/components/LogViewer';
 
 function getAlertLevel(temp) {
   if (temp === null) return "Safe";
@@ -189,6 +190,7 @@ export default function Home() {
   const [nearestBearing, setNearestBearing] = useState(null);
   const [selectedShelterType, setSelectedShelterType] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const [locationDetail, setLocationDetail] = useState('');
   const [locationFull, setLocationFull] = useState('');
   const [locationModalOpen, setLocationModalOpen] = useState(false);
@@ -1386,6 +1388,18 @@ export default function Home() {
                     )}
                   </div>
 
+                  {/* ── Sensor Log button — desktop sidebar ── */}
+                  <button
+                    type="button"
+                    onClick={() => setLogOpen(true)}
+                    className="hidden md:flex flex-col gap-1 border rounded-xl p-3 cursor-pointer transition-all bg-[#0d1a1f]/40 border-cyan-500/20 hover:border-cyan-400/40 text-left w-full"
+                  >
+                    <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      Sensor Log
+                    </div>
+                    <div className="text-[11px] text-neutral-500">View readings & alerts</div>
+                  </button>
 
               </div>
            </div>
@@ -1540,6 +1554,10 @@ export default function Home() {
            </div>
         </div>
       </section>
+
+
+      {/* ── Log modal ── */}
+      <LogViewer isOpen={logOpen} onClose={() => setLogOpen(false)} />
 
       {/*  GitHub Integration  */}
       <section id="open-source" className="w-full relative py-32 border-b border-white/[0.05] scroll-mt-24 overflow-hidden">
