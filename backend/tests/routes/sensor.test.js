@@ -191,7 +191,7 @@ describe('Sensor Routes', () => {
       })
     })
 
-    it('accepts ISO datetime date filters when listing readings', async () => {
+    it('accepts date input filters when listing readings', async () => {
       const db = createTestDatabase()
       await db.rows.push({
         id: 1,
@@ -202,9 +202,7 @@ describe('Sensor Routes', () => {
         source: 'sensor'
       })
       const app = createApp({ db })
-      const res = await app.request(
-        '/api/sensors?from=2026-05-29T00:00:00.000Z&to=2026-05-29T23:59:59.999Z'
-      )
+      const res = await app.request('/api/sensors?from=2026-05-29&to=2026-05-29')
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -273,7 +271,7 @@ describe('Sensor Routes', () => {
       }
     })
 
-    it('accepts DD-MM-YYYY and DD/MM/YYYY date filters', async () => {
+    it('accepts date input filters', async () => {
       const db = createTestDatabase()
       await db.insert(alertLogs).values({
         timestamp: '2026-05-29T09:00:00.000Z',
@@ -285,7 +283,7 @@ describe('Sensor Routes', () => {
       })
 
       const app = createApp({ db })
-      const res = await app.request('/api/alerts?from=29-05-2026&to=29/05/2026')
+      const res = await app.request('/api/alerts?from=2026-05-29&to=2026-05-29')
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -301,7 +299,7 @@ describe('Sensor Routes', () => {
       expect(res.status).toBe(400)
     })
 
-    it('accepts ISO datetime filters while still requiring day-month-year', async () => {
+    it('returns 400 for ISO datetime filters', async () => {
       const db = createTestDatabase()
       await db.insert(alertLogs).values({
         timestamp: '2026-05-29T09:00:00.000Z',
@@ -317,9 +315,7 @@ describe('Sensor Routes', () => {
         '/api/alerts?from=2026-05-29T00:00:00.000Z&to=2026-05-29T23:59:59.999Z'
       )
 
-      expect(res.status).toBe(200)
-      const body = await res.json()
-      expect(body).toHaveLength(1)
+      expect(res.status).toBe(400)
     })
 
     it('respects limit, level, and zone filters', async () => {

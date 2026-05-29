@@ -46,27 +46,19 @@ const parseCalendarDate = (value, { endOfDay = false } = {}) => {
     return null
   }
 
-  const trimmed = value.trim()
-  let year
-  let month
-  let day
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
 
-  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
-    const date = new Date(trimmed)
-    return Number.isNaN(date.getTime()) ? null : date
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    ;[year, month, day] = trimmed.split('-').map(Number)
-  } else if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
-    ;[day, month, year] = trimmed.split('-').map(Number)
-  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-    ;[day, month, year] = trimmed.split('/').map(Number)
-  } else {
+  if (!match) {
     return null
   }
 
-  const date = new Date(Date.UTC(year, month - 1, day))
+  const [, yearString, monthString, dayString] = match
+  const year = Number(yearString)
+  const month = Number(monthString)
+  const day = Number(dayString)
+  const date = new Date(
+    Date.UTC(year, month - 1, day, ...(endOfDay ? [23, 59, 59, 999] : []))
+  )
 
   if (
     Number.isNaN(date.getTime()) ||
@@ -75,12 +67,6 @@ const parseCalendarDate = (value, { endOfDay = false } = {}) => {
     date.getUTCDate() !== day
   ) {
     return null
-  }
-
-  if (endOfDay) {
-    date.setUTCHours(23, 59, 59, 999)
-  } else {
-    date.setUTCHours(0, 0, 0, 0)
   }
 
   return date
