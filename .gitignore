@@ -3,5 +3,12 @@
 .direnv/
 .tmp/
 
+# Environment files are local-only. The deployed backend URL is the app default,
+# so backend database credentials are not required for frontend local dev.
+.env
+.env.*
+**/.env
+**/.env.*
+
 # macOS
 .DS_Store

@@ -33,7 +33,7 @@ export const createApp = ({ sensorStore, db: database } = {}) => {
       version: '1.0.0',
       description:
         'Real-time temperature sensor API for SafeSpot Toronto. Receives temperature data ' +
-        'from a Raspberry Pi sensor, stores readings in SQLite, evaluates danger levels ' +
+        'from a Raspberry Pi sensor, stores readings in PostgreSQL, evaluates danger levels ' +
         'based on Health Canada and Toronto Public Health guidelines, and provides ' +
         'manual override for testing.',
       contact: {

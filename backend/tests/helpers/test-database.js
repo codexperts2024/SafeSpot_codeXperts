@@ -1,9 +1,19 @@
-import { createDatabase } from '../../src/db.js'
-
 export const createTestDatabase = () => {
-  const { db, initializeDatabase } = createDatabase({
-    filename: ':memory:'
-  })
-  initializeDatabase()
-  return db
+  const rows = []
+
+  return {
+    rows,
+    insert: () => ({
+      values: async (value) => {
+        rows.push({ ...value, id: rows.length + 1 })
+      }
+    }),
+    select: () => ({
+      from: () => ({
+        orderBy: () => ({
+          limit: async (count) => rows.slice(-count).reverse()
+        })
+      })
+    })
+  }
 }

@@ -19,7 +19,7 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!safespot.db"]
+    "includes": ["**", "!**/node_modules"]
   },
   "vcs": {
     "enabled": true,

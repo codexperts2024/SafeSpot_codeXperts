@@ -21,17 +21,16 @@ export const createSensorStore = (database) => {
     )
   }
 
-  const save = (temperature, source) => {
+  const save = async (temperature, source) => {
     const createdAt = new Date().toISOString()
 
-    database
+    await database
       .insert(sensorReadings)
       .values({
         temperature,
         source,
         createdAt
       })
-      .run()
 
     return {
       temperature,
@@ -40,13 +39,12 @@ export const createSensorStore = (database) => {
     }
   }
 
-  const getLatest = () => {
-    const latestReading = database
+  const getLatest = async () => {
+    const [latestReading] = await database
       .select()
       .from(sensorReadings)
       .orderBy(desc(sensorReadings.id))
       .limit(1)
-      .get()
 
     return toReadingPayload(latestReading)
   }
