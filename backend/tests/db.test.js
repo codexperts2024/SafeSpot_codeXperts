@@ -4,37 +4,17 @@ import { createDatabase, createPostgresPoolConfig } from '../src/db.js'
 describe('PostgreSQL configuration', () => {
   it('uses PG_URL when provided', () => {
     const config = createPostgresPoolConfig({
-      PG_URL: 'postgres://user:pass@example.com:5432/safespot'
-    })
-
-    expect(config.connectionString).toBe(
-      'postgres://user:pass@example.com:5432/safespot'
-    )
-    expect(config.ssl).toEqual({ rejectUnauthorized: false })
-  })
-
-  it('falls back to individual PG_* values', () => {
-    const config = createPostgresPoolConfig({
-      PG_HOSTNAME: 'localhost',
-      PG_PORT: '5433',
-      PG_DATABASE: 'sensor_readings',
-      PG_USERNAME: 'sensor_readings_user',
-      PG_PASSWORD: 'secret'
+      PG_URL: 'postgres://user:password@db.example.com:5432/safespot'
     })
 
     expect(config).toEqual({
-      host: 'localhost',
-      port: 5433,
-      database: 'sensor_readings',
-      user: 'sensor_readings_user',
-      password: 'secret',
-      ssl: false
+      connectionString: 'postgres://user:password@db.example.com:5432/safespot'
     })
   })
 
-  it('throws when required values are missing', () => {
+  it('throws when PG_URL is missing', () => {
     expect(() => createPostgresPoolConfig({})).toThrow(
-      'Missing PostgreSQL configuration'
+      'Missing PostgreSQL configuration: PG_URL'
     )
   })
 })
