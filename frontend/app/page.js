@@ -194,6 +194,21 @@ export default function Home() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [toastAlert, setToastAlert] = useState(null);
   const toastTimeoutRef = useRef(null);
+  useEffect(() => {
+    if (!mapRef.current || !selectedShelterType) return;
+
+    let target = null;
+    if (selectedShelterType === 'cooling' && nearestCooling) {
+        target = nearestCooling;
+    } else if (selectedShelterType === 'library' && nearestLibrary) {
+        target = nearestLibrary;
+    }
+
+    if (target) {
+        // Fly to the selected shelter automatically with higher zoom level
+        mapRef.current.flyTo([target.lat, target.lng], 15, { duration: 1.2 });
+    }
+  }, [selectedShelterType, nearestCooling, nearestLibrary]);
 
   const getBannerAlert = () => {
     if (activeTemp === null) return null;
@@ -414,21 +429,21 @@ export default function Home() {
         }).catch(e => console.error("Library data load failed", e));
         
         const userIcon = L.divIcon({
-            html: `<div class="relative flex items-center justify-center w-6 h-6"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60"></span><div class="w-3.5 h-3.5 bg-green-500 rounded-full border-[2px] border-black shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div></div>`,
+            html: `<div class="relative flex items-center justify-center w-8 h-8"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-70"></span><div class="w-5 h-5 bg-green-500 rounded-full border-[2px] border-white shadow-[0_0_15px_rgba(34,197,94,0.9)]"></div></div>`,
             className: "",
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
         });
         let userMarker = null;
 
         window.addEventListener('safespot-gps-updated', (e) => {
             const { lat, lng } = e.detail;
             if (!userMarker) {
-                userMarker = L.marker([lat, lng], {icon: userIcon}).addTo(map).bindTooltip("<b>You are here</b>", {direction: 'top', offset: [0, -10]});
+                userMarker = L.marker([lat, lng], {icon: userIcon, zIndexOffset: 9999}).addTo(map).bindTooltip("<b>You are here</b>", {permanent: true, direction: 'top', offset: [0, -16]});
             } else {
                 userMarker.setLatLng([lat, lng]);
             }
-            map.flyTo([lat, lng], 14, { duration: 1.2 });
+            map.flyTo([lat, lng], 15, { duration: 1.2 });
         });
 
         // Add "Go to My Location" Control
@@ -453,7 +468,7 @@ export default function Home() {
                         window.dispatchEvent(new CustomEvent('safespot-request-location'));
                     } else {
                         const latlng = userMarker.getLatLng();
-                        map.flyTo([latlng.lat, latlng.lng], 14, { duration: 1.2 });
+                        map.flyTo([latlng.lat, latlng.lng], 15, { duration: 1.2 });
                     }
                 };
                 return container;
@@ -774,6 +789,16 @@ export default function Home() {
       );
   };
 
+  const handleFlyToLocation = (e) => {
+      if (e) e.stopPropagation();
+      if (userPos && mapRef.current) {
+          mapRef.current.flyTo([userPos.lat, userPos.lng], 15, { duration: 1.2 });
+          const mapArea = document.getElementById('map-area');
+          if (mapArea) mapArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+          requestUserLocation(true);
+      }
+  };
 
   return (
     <>
@@ -789,85 +814,94 @@ export default function Home() {
           onClick={() => setLocationModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-sm bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col gap-5"
+            className="relative w-full max-w-[520px] overflow-hidden bg-gradient-to-b from-[#1a1a1a]/95 to-[#0a0a0a]/98 backdrop-blur-3xl border border-white/10 rounded-[24px] shadow-[0_30px_100px_rgba(0,0,0,0.9)] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Top decorative gradient glow */}
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
+            <div className="absolute top-0 -left-1/2 w-[200%] h-32 bg-cyan-500/10 blur-[50px] rounded-[100%] pointer-events-none"></div>
+
             {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-cyan-400">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="12" cy="12" r="4"/>
-                  <path d="M13 4.069V2h-2v2.069A8.01 8.01 0 0 0 4.069 11H2v2h2.069A8.008 8.008 0 0 0 11 19.931V22h2v-2.069A8.007 8.007 0 0 0 19.931 13H22v-2h-2.069A8.008 8.008 0 0 0 13 4.069zM12 18c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6z"/>
-                </svg>
-                <span className="font-semibold text-[15px]">Your Location</span>
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-white/[0.04]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v2"/><path d="M12 20v2"/><path d="M2 12h2"/><path d="M20 12h2"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+                <span className="font-semibold text-white tracking-wide text-[15px]">Location Details</span>
               </div>
               <button
                 onClick={() => setLocationModalOpen(false)}
-                className="p-1.5 rounded-lg text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-neutral-400 hover:text-white transition-all"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            {/* Address */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] text-neutral-500 uppercase tracking-widest font-medium">Address</span>
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-[22px] font-semibold text-white leading-tight">
+            {/* Content Area */}
+            <div className="p-6 flex flex-col gap-6">
+              
+              {/* Address */}
+              <div className="group flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-widest flex items-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-600"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                    Physical Address
+                  </span>
+                  <button
+                    onClick={() => navigator.clipboard?.writeText(locationFull || locationDetail || locationText || '')}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md text-neutral-500 hover:text-white hover:bg-white/10"
+                    title="Copy address"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  </button>
+                </div>
+                <span className="text-[18px] md:text-[20px] font-medium text-white/90 leading-snug">
                   {locationFull || locationDetail || locationText || 'Unknown'}
                 </span>
-                <button
-                  onClick={() => navigator.clipboard?.writeText(locationFull || locationDetail || locationText || '')}
-                  className="shrink-0 mt-1 p-1.5 rounded-lg text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
-                  title="Copy address"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                </button>
               </div>
-            </div>
 
-            <div className="h-px bg-white/[0.06]"></div>
-
-            {/* Coordinates */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] text-neutral-500 uppercase tracking-widest font-medium">Coordinates (5 decimal places)</span>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[26px] font-mono font-bold text-cyan-400 leading-tight tracking-tight">
-                  {userPos.lat.toFixed(5)},<br/>{userPos.lng.toFixed(5)}
-                </span>
+              {/* Coordinates Box */}
+              <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between group shadow-inner">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-widest flex items-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-600"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    GPS Coordinates
+                  </span>
+                  <div className="flex items-baseline gap-3 mt-1">
+                    <span className="text-[20px] font-mono font-medium text-cyan-400 tracking-tight drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]">
+                      {userPos.lat.toFixed(5)}<span className="text-cyan-400/40">,</span>
+                    </span>
+                    <span className="text-[20px] font-mono font-medium text-cyan-400 tracking-tight drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]">
+                      {userPos.lng.toFixed(5)}
+                    </span>
+                  </div>
+                </div>
                 <button
                   onClick={() => navigator.clipboard?.writeText(`${userPos.lat.toFixed(5)}, ${userPos.lng.toFixed(5)}`)}
-                  className="shrink-0 p-1.5 rounded-lg text-neutral-500 hover:text-cyan-400 hover:bg-white/10 transition-colors"
+                  className="w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center hover:bg-cyan-500/20 hover:scale-105 active:scale-95 transition-all shadow-[0_4px_12px_rgba(34,211,238,0.1)]"
                   title="Copy coordinates"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
               </div>
-            </div>
 
-            {/* 911 note */}
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5 text-[12px] text-red-300 leading-relaxed">
-              🚨 <span className="font-semibold">In an emergency:</span> Call 911 and read these coordinates aloud.
+              {/* Emergency Banner */}
+              <div className="bg-gradient-to-r from-red-500/10 to-transparent border-l-2 border-red-500 rounded-r-lg px-4 py-3.5 flex items-start gap-3 mt-2">
+                <div className="text-red-400 mt-0.5 animate-pulse drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22M12 6l7.53 13H4.47M11 10v4h2v-4m-2 6v2h2v-2"/></svg>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[13px] font-bold text-red-400 tracking-wide">EMERGENCY PROTOCOL</span>
+                  <span className="text-[12px] text-neutral-300 mt-0.5 leading-relaxed font-medium">Call <strong className="text-white">911</strong> and read the blue GPS coordinates aloud to dispatch.</span>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
       )}
 
-      {/* Temperature alert toast */}
-      {toastAlert && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9998] max-w-sm w-[90vw] bg-[#1a0f0a] border border-orange-500/50 rounded-2xl px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.8)] flex items-center gap-3 animate-[fade-up_0.3s_ease-out_forwards]">
-          <span className="text-2xl shrink-0">
-            {toastAlert.level === 'Extreme' ? '🔴' : toastAlert.level === 'Danger' ? '🚨' : '⚠️'}
-          </span>
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="font-semibold text-[13px] text-white">Heat Alert: {toastAlert.level}</span>
-            <span className="text-[11px] text-neutral-400">{toastAlert.temp?.toFixed(1)}°C — seek cooling immediately</span>
-          </div>
-          <button onClick={() => setToastAlert(null)} className="ml-auto shrink-0 p-1.5 text-neutral-500 hover:text-white transition-colors">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      )}
+      {/* Removed bottom toast alert to prevent duplicate alerts (top banner is sufficient) */}
 
 
 
@@ -913,7 +947,7 @@ export default function Home() {
             })()}
 
             {/* Detect location — desktop only */}
-            <button id="location-pill" onClick={() => requestUserLocation(true)} className="hidden md:flex items-center gap-1.5 text-neutral-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer text-[13px]">
+            <button id="location-pill" onClick={handleFlyToLocation} className="hidden md:flex items-center gap-1.5 text-neutral-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer text-[13px]">
               <i data-lucide="map-pin" className="w-3 h-3 text-green-400"></i>
               <span id="location-text" className="text-neutral-300 text-[12px]">{locationText}</span>
             </button>
@@ -973,7 +1007,7 @@ export default function Home() {
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 [background-image:radial-gradient(circle_at_20%_20%,rgba(255,79,2,0.3)_0%,rgba(255,79,2,0)_50%),radial-gradient(circle_at_80%_80%,rgba(0,173,189,0.28)_0%,rgba(0,173,189,0)_50%),linear-gradient(135deg,rgba(0,0,0,0.96)_0%,rgba(255,79,2,0.18)_40%,rgba(0,0,0,0.9)_50%,rgba(0,173,189,0.18)_60%,rgba(0,0,0,0.95)_100%)] [background-position:0%_0%,100%_100%,0%_50%] [background-size:180%_180%,180%_180%,250%_250%] before:absolute before:left-[-5%] before:top-[-20%] before:h-[600px] before:w-[600px] before:rounded-full before:bg-[radial-gradient(circle,rgba(255,79,2,0.25)_0%,transparent_65%)] before:content-[''] before:[filter:blur(4px)] after:absolute after:bottom-[-15%] after:right-[-5%] after:h-[600px] after:w-[600px] after:rounded-full after:bg-[radial-gradient(circle,rgba(0,173,189,0.25)_0%,transparent_65%)] after:content-[''] after:[filter:blur(3px)] motion-safe:animate-[hero-gradient-flow_20s_ease-in-out_infinite] motion-safe:before:animate-[hero-glow-drift_12s_ease-in-out_infinite] motion-safe:after:animate-[hero-glow-drift-reverse_14s_ease-in-out_infinite] will-change-[background-position]"></div>
         
         {/*  Content Container  */}
-        <div className="relative z-10 w-full flex flex-col items-start pt-16 pb-8 md:py-32 px-6 text-left max-w-[1200px] mx-auto border-b border-white/[0.05]">
+        <div className="relative z-10 w-full flex flex-col justify-center items-start pt-16 pb-8 md:py-32 px-6 text-left max-w-[1200px] mx-auto border-b border-white/[0.05] min-h-[calc(100vh-76px)]">
           <p className="text-sm uppercase tracking-widest text-orange-400 mb-6 font-semibold">Why SafeSpot?</p>
         <h1 className="text-4xl md:text-[56px] font-medium tracking-tight max-w-[900px] leading-[1.15] mb-8 text-white text-left">
           <span className="inline-block opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]">In 2021, a heat dome killed</span><br/>
@@ -1019,10 +1053,10 @@ export default function Home() {
 
 
       {/*  How It Works (Simple Horizontal View - Scrollytelling)  */}
-      <section id="how-it-works-simple" className="w-full relative h-[260vh] bg-[#000000]">
-        <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden border-b border-white/[0.05]">
-          <div className="w-full max-w-[1200px] mx-auto px-6">
-            <div className="mb-6 md:mb-20">
+      <section id="how-it-works-simple" className="w-full relative h-auto md:h-[260vh] bg-[#000000]">
+        <div className="relative md:sticky top-0 h-auto md:h-screen w-full flex flex-col justify-start pt-28 md:pt-0 md:justify-center overflow-hidden border-b border-white/[0.05]">
+          <div className="w-full max-w-[1200px] mx-auto px-6 overflow-y-auto md:overflow-visible pb-10 md:pb-0">
+            <div className="mb-6 md:mb-20 shrink-0">
               <p className="text-sm uppercase tracking-widest text-orange-400 mb-3 md:mb-4">How It Works</p>
               <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-3 md:mb-4">From Sensor to Safety</h2>
               <p className="text-[15px] text-neutral-400 leading-relaxed">Unlike weather apps that report a city-wide average, SafeSpot measures the <span className="text-orange-400 font-medium">actual temperature where you are</span>.</p>
@@ -1030,51 +1064,67 @@ export default function Home() {
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-8 mb-4 md:mb-16 relative">
               {/*  Item 1  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="0">
-                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
-                   <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
-                   <div className="w-1.5 h-1.5 rounded-full bg-orange-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(251,146,60,0.8)] animate-[travel-dot_4s_linear_infinite]"></div>
-                   <div className="w-2.5 h-2.5 rounded-full bg-orange-400 border-[2px] border-orange-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(251,146,60,0.5)] transition-all relative"></div>
+              <div className="hw-scroll-item flex flex-row md:flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="0">
+                <div className="flex md:items-center h-full w-4 md:w-full mr-4 md:mr-0 mb-0 md:mb-8 relative overflow-visible shrink-0">
+                   <div className="hidden md:block w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="md:hidden w-[1px] h-full bg-white/10 absolute top-0 left-1/2 -translate-x-1/2"></div>
+                   <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-orange-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(251,146,60,0.8)] animate-[travel-dot_4s_linear_infinite]"></div>
+                   <div className="md:hidden w-1.5 h-1.5 rounded-full bg-orange-400 absolute top-0 left-1/2 -translate-x-1/2 shadow-[0_0_8px_rgba(251,146,60,0.8)]" style={{ animation: 'travel-dot-vertical 4s linear infinite', animationDelay: '0s' }}></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-orange-400 border-[2px] border-orange-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(251,146,60,0.5)] transition-all relative mt-1 md:mt-0"></div>
                 </div>
-                <h3 className="text-[15px] font-medium text-white group-hover:text-orange-400 transition-colors mb-2">Measure Real Local Heat</h3>
-                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">A Raspberry Pi sensor captures actual ground-level temperature.</p>
-                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-900 text-orange-300">Hardware</span></div>
+                <div className="flex flex-col pb-4 md:pb-0">
+                  <h3 className="text-[16px] md:text-lg font-semibold text-white group-hover:text-orange-400 transition-colors mb-2">Measure Real Local Heat</h3>
+                  <p className="text-[13px] md:text-[15px] text-neutral-400 leading-relaxed md:max-w-[90%]">A Raspberry Pi sensor captures actual ground-level temperature.</p>
+                  <div className="mt-3 md:mt-4"><span className="text-[12px] md:text-[13px] px-2.5 py-0.5 rounded-full font-medium bg-orange-900 text-orange-300">Hardware</span></div>
+                </div>
               </div>
 
               {/*  Item 2  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="1">
-                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
-                   <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
-                   <div className="w-1.5 h-1.5 rounded-full bg-purple-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(192,132,252,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:1s]"></div>
-                   <div className="w-2.5 h-2.5 rounded-full bg-purple-400 border-[2px] border-purple-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(192,132,252,0.5)] transition-all relative"></div>
+              <div className="hw-scroll-item flex flex-row md:flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="1">
+                <div className="flex md:items-center h-full w-4 md:w-full mr-4 md:mr-0 mb-0 md:mb-8 relative overflow-visible shrink-0">
+                   <div className="hidden md:block w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="md:hidden w-[1px] h-full bg-white/10 absolute top-0 left-1/2 -translate-x-1/2"></div>
+                   <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-purple-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(192,132,252,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:1s]"></div>
+                   <div className="md:hidden w-1.5 h-1.5 rounded-full bg-purple-400 absolute top-0 left-1/2 -translate-x-1/2 shadow-[0_0_8px_rgba(192,132,252,0.8)]" style={{ animation: 'travel-dot-vertical 4s linear infinite', animationDelay: '1s' }}></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-purple-400 border-[2px] border-purple-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(192,132,252,0.5)] transition-all relative mt-1 md:mt-0"></div>
                 </div>
-                <h3 className="text-[15px] font-medium text-white group-hover:text-purple-400 transition-colors mb-2">Map Urban Heat Zones</h3>
-                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">ArcGIS data overlays heat island zones on an interactive map.</p>
-                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-900 text-purple-300">GIS Data</span></div>
+                <div className="flex flex-col pb-4 md:pb-0">
+                  <h3 className="text-[16px] md:text-lg font-semibold text-white group-hover:text-purple-400 transition-colors mb-2">Map Urban Heat Zones</h3>
+                  <p className="text-[13px] md:text-[15px] text-neutral-400 leading-relaxed md:max-w-[90%]">ArcGIS data overlays heat island zones on an interactive map.</p>
+                  <div className="mt-3 md:mt-4"><span className="text-[12px] md:text-[13px] px-2.5 py-0.5 rounded-full font-medium bg-purple-900 text-purple-300">GIS Data</span></div>
+                </div>
               </div>
 
               {/*  Item 3  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="2">
-                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
-                   <div className="w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
-                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(248,113,113,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:2s]"></div>
-                   <div className="w-2.5 h-2.5 rounded-full bg-red-400 border-[2px] border-red-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(248,113,113,0.5)] transition-all relative"></div>
+              <div className="hw-scroll-item flex flex-row md:flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="2">
+                <div className="flex md:items-center h-full w-4 md:w-full mr-4 md:mr-0 mb-0 md:mb-8 relative overflow-visible shrink-0">
+                   <div className="hidden md:block w-full h-[1px] bg-white/10 absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="md:hidden w-[1px] h-full bg-white/10 absolute top-0 left-1/2 -translate-x-1/2"></div>
+                   <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-red-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(248,113,113,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:2s]"></div>
+                   <div className="md:hidden w-1.5 h-1.5 rounded-full bg-red-400 absolute top-0 left-1/2 -translate-x-1/2 shadow-[0_0_8px_rgba(248,113,113,0.8)]" style={{ animation: 'travel-dot-vertical 4s linear infinite', animationDelay: '2s' }}></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-red-400 border-[2px] border-red-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(248,113,113,0.5)] transition-all relative mt-1 md:mt-0"></div>
                 </div>
-                <h3 className="text-[15px] font-medium text-white group-hover:text-red-400 transition-colors mb-2">Trigger Danger Alerts</h3>
-                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">A warning fires when heat and location combine into extreme risk.</p>
-                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-900 text-red-300">Alert System</span></div>
+                <div className="flex flex-col pb-4 md:pb-0">
+                  <h3 className="text-[16px] md:text-lg font-semibold text-white group-hover:text-red-400 transition-colors mb-2">Trigger Danger Alerts</h3>
+                  <p className="text-[13px] md:text-[15px] text-neutral-400 leading-relaxed md:max-w-[90%]">Alert trigger when heat and location reach extreme risk.</p>
+                  <div className="mt-3 md:mt-4"><span className="text-[12px] md:text-[13px] px-2.5 py-0.5 rounded-full font-medium bg-red-900 text-red-300">Alert System</span></div>
+                </div>
               </div>
 
               {/*  Item 4  */}
-              <div className="hw-scroll-item flex flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="3">
-                <div className="hidden md:flex items-center w-full mb-8 relative overflow-visible">
-                   <div className="w-full h-[1px] bg-gradient-to-r from-white/10 to-transparent absolute left-0 top-1/2 -translate-y-1/2"></div>
-                   <div className="w-1.5 h-1.5 rounded-full bg-green-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:3s]"></div>
-                   <div className="w-2.5 h-2.5 rounded-full bg-green-400 border-[2px] border-green-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(74,222,128,0.5)] transition-all relative"></div>
+              <div className="hw-scroll-item flex flex-row md:flex-col group opacity-0 transition-[opacity,transform] duration-700 ease-out translate-y-8 pointer-events-none" data-index="3">
+                <div className="flex md:items-center h-full w-4 md:w-full mr-4 md:mr-0 mb-0 md:mb-8 relative overflow-visible shrink-0">
+                   <div className="hidden md:block w-full h-[1px] bg-gradient-to-r from-white/10 to-transparent absolute left-0 top-1/2 -translate-y-1/2"></div>
+                   <div className="md:hidden w-[1px] h-full bg-gradient-to-b from-white/10 to-transparent absolute top-0 left-1/2 -translate-x-1/2"></div>
+                   <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-green-400 absolute left-0 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-[travel-dot_4s_linear_infinite] [animation-delay:3s]"></div>
+                   <div className="md:hidden w-1.5 h-1.5 rounded-full bg-green-400 absolute top-0 left-1/2 -translate-x-1/2 shadow-[0_0_8px_rgba(74,222,128,0.8)]" style={{ animation: 'travel-dot-vertical 4s linear infinite', animationDelay: '3s' }}></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-green-400 border-[2px] border-green-400 z-10 shadow-[0_0_0_4px_#000] group-hover:shadow-[0_0_0_4px_#000,0_0_10px_rgba(74,222,128,0.5)] transition-all relative mt-1 md:mt-0"></div>
                 </div>
-                <h3 className="text-[15px] font-medium text-white group-hover:text-green-400 transition-colors mb-2">Route to Safety</h3>
-                <p className="text-[14px] text-neutral-400 leading-relaxed max-w-[90%]">Instantly calculates your nearest cooling centre via Maps.</p>
-                <div className="mt-4"><span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-900 text-green-300">Routing</span></div>
+                <div className="flex flex-col pb-4 md:pb-0">
+                  <h3 className="text-[16px] md:text-lg font-semibold text-white group-hover:text-green-400 transition-colors mb-2">Route to Safety</h3>
+                  <p className="text-[13px] md:text-[15px] text-neutral-400 leading-relaxed md:max-w-[90%]">Instantly calculates your nearest cooling centre via Maps.</p>
+                  <div className="mt-3 md:mt-4"><span className="text-[12px] md:text-[13px] px-2.5 py-0.5 rounded-full font-medium bg-green-900 text-green-300">Routing</span></div>
+                </div>
               </div>
             </div>
 
@@ -1207,7 +1257,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="dashboard" className="w-full max-w-[1200px] mx-auto py-16 px-6 md:px-12 border-b border-white/[0.05] scroll-mt-16">
+      <section id="dashboard" className="w-full max-w-[1200px] mx-auto py-16 px-6 border-b border-white/[0.05] scroll-mt-16">
         <div className="mb-16">
           <p className="text-sm uppercase tracking-widest text-orange-400 mb-4 font-semibold">Live Map</p>
           <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-4">Interactive Heat Dashboard</h2>
@@ -1217,24 +1267,37 @@ export default function Home() {
         </div>
         {/*   Main App Mockup Image   */}
         {/*   Main App Mockup HTML   */}
-        <div id="map-widget" className="w-full min-h-[760px] rounded-[16px] border border-white/10 bg-[#0a0a0a] overflow-hidden relative shadow-[0_40px_100px_rgba(255,255,255,0.03)] flex flex-col md:flex-row ring-1 ring-white/5">
+        <div id="map-widget" className="w-full min-h-[760px] rounded-[16px] border border-white/10 bg-[#0a0a0a] overflow-hidden relative z-10 shadow-[0_40px_100px_rgba(255,255,255,0.03)] flex flex-col md:flex-row ring-1 ring-white/5">
            
            {/*   Left Sidebar: Data Cards   */}
            <div className="w-full md:w-[280px] border-r border-white/5 bg-[#111111]/90 backdrop-blur-xl flex flex-col z-20 shrink-0">
               {/*  Header  */}
-              <div className="h-16 border-b border-white/5 flex items-center px-6 justify-between gap-4 w-full">
-                 <div className="flex items-center gap-3">
-                   <div className="flex items-center justify-center w-6 h-6 rounded-md bg-orange-500/20 text-orange-400">
+              <div className="h-16 border-b border-white/5 flex items-center px-6 justify-between gap-4 w-full relative overflow-hidden">
+                 <div className="flex items-center gap-3 shrink-0">
+                   <div className="flex items-center justify-center w-6 h-6 rounded-md bg-orange-500/20 text-orange-400 shrink-0">
                      <i data-lucide="activity" className="w-4 h-4"></i>
                    </div>
-                   <span className="text-white font-medium text-[14px]">Live Dashboard</span>
+                   <span className="text-white font-medium text-[14px] whitespace-nowrap">Live Dashboard</span>
                  </div>
-                 <div className="flex items-center gap-2">
-                   <span className="relative flex h-2 w-2">
-                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                   </span>
-                   <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-widest">Live</span>
+                 
+                 <div className="flex items-center gap-3">
+                   {/* Animated Waveform replacing the 'Live' text */}
+                   <div className="w-[80px] h-5 relative overflow-hidden flex items-center opacity-80" style={{ maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)' }}>
+                     <style>{`
+                       @keyframes slideWave {
+                         0% { transform: translateX(0); }
+                         100% { transform: translateX(-120px); }
+                       }
+                     `}</style>
+                     <svg width="200%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute left-0 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]" style={{ animation: 'slideWave 1.5s linear infinite' }}>
+                       <defs>
+                         <pattern id="waveformMoving" x="0" y="0" width="120" height="20" patternUnits="userSpaceOnUse">
+                           <path d="M0 10h30l5-8 10 16 5-8h70" fill="none" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                         </pattern>
+                       </defs>
+                       <rect x="0" y="0" width="100%" height="100%" fill="url(#waveformMoving)" />
+                     </svg>
+                   </div>
                  </div>
               </div>
 
@@ -1299,7 +1362,7 @@ export default function Home() {
                       )}
                     </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); requestUserLocation(true); }}
+                      onClick={handleFlyToLocation}
                       className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-cyan-400 transition-colors shrink-0 mt-0.5"
                       title="Detect Location"
                     >
@@ -1316,7 +1379,7 @@ export default function Home() {
                     onClick={() => userPos && nearestCooling && setSelectedShelterType('cooling')}
                   >
                     <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center justify-between gap-1">
-                      <span>❄️ Nearest Cooling Centre</span>
+                      <span>❄️ Nearest Cooling</span>
                       {selectedShelterType === 'cooling' && <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full">Selected</span>}
                     </div>
                     {userPos && nearestCooling ? (
@@ -1394,48 +1457,58 @@ export default function Home() {
            <div id="map-area" className="flex-1 min-h-[420px] relative bg-[#050505] overflow-hidden flex flex-col">
               {/*  Actual Map Container  */}
               <div id="map" className="absolute inset-0 z-0"></div>
-              {/* 🧪 Test buttons + zone info */}
+              {/* 🧪 Test buttons */}
               <div
-                className="absolute top-4 left-4 z-[1000] flex flex-col items-start gap-2 pointer-events-auto"
+                className="absolute top-4 left-4 z-[1000] flex items-center pointer-events-auto"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}
               >
-                <div className="flex flex-row flex-wrap justify-start gap-1.5">
-                  <button type="button" onClick={() => setSimulatedTemp(30)} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-yellow-500/90 hover:bg-yellow-400 text-black font-bold backdrop-blur-sm transition-transform active:scale-95">⚠️ 30°C</button>
-                  <button type="button" onClick={() => setSimulatedTemp(36)} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-orange-600/90 hover:bg-orange-500 text-white font-bold backdrop-blur-sm transition-transform active:scale-95">🚨 36°C</button>
-                  <button type="button" onClick={() => setSimulatedTemp(41)} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-red-700/90 hover:bg-red-600 text-white font-bold backdrop-blur-sm transition-transform active:scale-95">🔴 41°C</button>
-                  <button type="button" onClick={() => { setSimulatedTemp(null); setSensorTemp(20.0); if (fetchSensorRef.current) fetchSensorRef.current(); }} className="text-[10px] md:text-[13px] px-2 md:px-3 py-1 md:py-2 rounded shadow-lg bg-zinc-700/90 hover:bg-zinc-600 text-white font-bold backdrop-blur-sm transition-transform active:scale-95 ring-1 ring-white/20">✅ Reset</button>
+                {/* Test Controls Group */}
+                <div className="flex bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg p-1 gap-1 shadow-[0_4px_12px_rgba(0,0,0,0.5)] items-center h-[34px]">
+                  <div className="px-2 text-[9px] font-bold text-neutral-500 uppercase tracking-widest flex items-center border-r border-white/10 mr-1 h-full">Test</div>
+                  <button type="button" onClick={() => setSimulatedTemp(30)} className="text-[11px] px-2.5 py-1 rounded-md bg-yellow-500/15 hover:bg-yellow-500/30 text-yellow-400 font-medium transition-colors">30°C</button>
+                  <button type="button" onClick={() => setSimulatedTemp(36)} className="text-[11px] px-2.5 py-1 rounded-md bg-orange-500/15 hover:bg-orange-500/30 text-orange-400 font-medium transition-colors">36°C</button>
+                  <button type="button" onClick={() => setSimulatedTemp(41)} className="text-[11px] px-2.5 py-1 rounded-md bg-red-500/15 hover:bg-red-500/30 text-red-400 font-medium transition-colors">41°C</button>
+                  <div className="w-px h-3.5 bg-white/10 self-center mx-1"></div>
+                  <button type="button" onClick={() => { setSimulatedTemp(null); setSensorTemp(20.0); if (fetchSensorRef.current) fetchSensorRef.current(); }} className="text-[11px] px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/15 text-neutral-300 font-medium transition-colors">Reset</button>
                 </div>
+              </div>
 
-                {/* Zone + bearing: stacked on mobile, side-by-side on desktop */}
-                <div className="flex flex-col md:flex-row gap-2">
-                  {/* Heat zone level indicator */}
-                  {userPos && currentZone && (
-                    <div className="bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-neutral-200 shadow-[0_4px_12px_rgba(0,0,0,0.5)] flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Zone</span>
-                      <span className={`font-bold uppercase ${currentZone === 'high' ? 'text-red-400' : currentZone === 'medium' ? 'text-orange-400' : 'text-yellow-400'}`}>
-                        {currentZone}
-                      </span>
-                      <span className="text-[14px]">{currentZone === 'high' ? '🔴' : currentZone === 'medium' ? '🟠' : '🟡'}</span>
+              {/* 🌍 Zone & Direction info (Bottom-Left on Mobile, Top-Left on Desktop) */}
+              <div
+                className="absolute bottom-6 left-4 md:bottom-auto md:top-4 md:left-[300px] z-[1000] flex flex-row items-center gap-2 pointer-events-auto"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+              >
+
+                {/* Heat zone level indicator */}
+                {userPos && currentZone && (
+                  <div className="bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 flex items-center gap-2 shadow-[0_4px_12px_rgba(0,0,0,0.5)] h-[34px]">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Zone</span>
+                    <span className={`text-[11px] font-bold uppercase ${currentZone === 'high' ? 'text-red-400' : currentZone === 'medium' ? 'text-orange-400' : 'text-yellow-400'}`}>
+                      {currentZone}
+                    </span>
+                    <span className="text-[12px]">{currentZone === 'high' ? '🔴' : currentZone === 'medium' ? '🟠' : '🟡'}</span>
+                  </div>
+                )}
+
+                {/* Direction arrow synced with selected shelter */}
+                {(() => {
+                  const sel = selectedShelterType === 'cooling' ? nearestCooling : selectedShelterType === 'library' ? nearestLibrary : null;
+                  if (!userPos || !sel) return null;
+                  const bearing = getBearing(userPos.lat, userPos.lng, sel.lat, sel.lng);
+                  return (
+                    <div className="bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 flex items-center gap-2 shadow-[0_4px_12px_rgba(0,0,0,0.5)] h-[34px]">
+                      <span style={{ transform: `rotate(${bearing}deg)`, display: 'inline-block', lineHeight: 1 }} className="text-[14px]">↑</span>
+                      <span className="text-[11px] font-bold text-cyan-400 tracking-wider">{bearingToCompass(bearing)}</span>
+                      <span className="text-neutral-600 mx-0.5 text-[10px]">•</span>
+                      <span className="text-[11px] text-neutral-300">{sel.type === 'cooling' ? '❄️ Cooling' : '📚 Library'}</span>
+                      <span className="text-[11px] font-medium text-white ml-1">{sel.distance.toFixed(2)} km</span>
                     </div>
-                  )}
-
-                  {/* Direction arrow synced with selected shelter */}
-                  {(() => {
-                    const sel = selectedShelterType === 'cooling' ? nearestCooling : selectedShelterType === 'library' ? nearestLibrary : null;
-                    if (!userPos || !sel) return null;
-                    const bearing = getBearing(userPos.lat, userPos.lng, sel.lat, sel.lng);
-                    return (
-                      <div className="bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-neutral-200 shadow-[0_4px_12px_rgba(0,0,0,0.5)] flex items-center gap-2">
-                        <span style={{ transform: `rotate(${bearing}deg)`, display: 'inline-block', lineHeight: 1 }} className="text-[16px]">↑</span>
-                        <span className="font-bold text-cyan-400">{bearingToCompass(bearing)}</span>
-                        <span className="text-neutral-400">{sel.type === 'cooling' ? '❄️' : '📚'}</span>
-                        <span className="text-neutral-300">{sel.distance.toFixed(1)} km</span>
-                      </div>
-                    );
-                  })()}
-                </div>
+                  );
+                })()}
               </div>
 
               {/* 🗺️ Horizontal Map Legend Floating Overlay — desktop only */}
@@ -1556,7 +1629,7 @@ export default function Home() {
         </div>
 
         {/*  Content Container  */}
-        <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center gap-12 md:gap-16">
+        <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 flex flex-col md:flex-row items-center gap-12 md:gap-16">
           <div className="flex-1">
             <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-6 drop-shadow-lg">Open Source & Ready</h2>
             <p className="text-[17px] text-neutral-300 leading-relaxed mb-8 drop-shadow-md font-medium">
@@ -1592,7 +1665,7 @@ export default function Home() {
 
       {/*  The Team Section  */}
       <div id="team-sponsors"></div>
-      <section id="team" className="w-full max-w-[1200px] mx-auto py-20 px-6 md:px-12 border-b border-white/[0.05] scroll-mt-16">
+      <section id="team" className="w-full max-w-[1200px] mx-auto py-20 px-6 border-b border-white/[0.05] scroll-mt-16">
         <div className="text-center mb-20">
           <p className="text-sm uppercase tracking-widest text-purple-400 mb-4">Behind SafeSpot</p>
           <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white mb-4">Meet the codeXperts</h2>
