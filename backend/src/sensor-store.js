@@ -1,3 +1,4 @@
+import { and, desc, eq, gte, lte, lt } from 'drizzle-orm'
 import { calculateHumidex } from './humidex.js'
 import { getAlertLevel } from './alerts.js'
 import { createAlertStore } from './alerts-store.js'
@@ -16,26 +17,6 @@ const toReadingPayload = (reading) => {
     source: reading.source
   }
 }
-
-const newestFirst = (left, right) => {
-  const leftTime = new Date(left.createdAt).getTime()
-  const rightTime = new Date(right.createdAt).getTime()
-
-  if (
-    !Number.isNaN(leftTime) &&
-    !Number.isNaN(rightTime) &&
-    leftTime !== rightTime
-  ) {
-    return rightTime - leftTime
-  }
-
-  return (right.id ?? 0) - (left.id ?? 0)
-}
-
-const getLatestReadingBySource = (rows, source) =>
-  rows
-    .filter((row) => row.source === source)
-    .sort(newestFirst)[0] ?? null
 
 const shouldStoreSensorReading = (latestSensorReading, level, timestamp) => {
   if (!latestSensorReading) {
@@ -69,8 +50,6 @@ export const createSensorStore = (database, { alertStore } = {}) => {
 
   const alerts = alertStore ?? createAlertStore(database)
 
-  const getAllReadings = async () => database.select().from(sensorReadings)
-
   const save = async (temperature, source, humidity = null, metadata = {}) => {
     const createdAt = new Date().toISOString()
     const humidex = calculateHumidex(temperature, humidity)
@@ -79,7 +58,14 @@ export const createSensorStore = (database, { alertStore } = {}) => {
     const shouldStore =
       source === 'sensor'
         ? shouldStoreSensorReading(
-            getLatestReadingBySource(await getAllReadings(), 'sensor'),
+            (
+              await database
+                .select()
+                .from(sensorReadings)
+                .where(eq(sensorReadings.source, 'sensor'))
+                .orderBy(desc(sensorReadings.id))
+                .limit(1)
+            )[0] ?? null,
             alert.level,
             createdAt
           )
@@ -120,40 +106,32 @@ export const createSensorStore = (database, { alertStore } = {}) => {
   }
 
   const getLatest = async () => {
-    const readings = await getAllReadings()
-    const latestReading = readings.sort(newestFirst)[0]
+    const rows = await database
+      .select()
+      .from(sensorReadings)
+      .orderBy(desc(sensorReadings.id))
+      .limit(1)
 
-    return toReadingPayload(latestReading)
+    return toReadingPayload(rows[0] ?? null)
   }
 
   const listReadings = async ({ from, to, limit = 100 } = {}) => {
-    const readings = await getAllReadings()
+    const conditions = []
+    if (from) {
+      conditions.push(gte(sensorReadings.createdAt, from.toISOString()))
+    }
+    if (to) {
+      conditions.push(lte(sensorReadings.createdAt, to.toISOString()))
+    }
 
-    return readings
-      .map(toReadingPayload)
-      .filter((reading) => {
-        const timestamp = new Date(reading.timestamp).getTime()
+    const rows = await database
+      .select()
+      .from(sensorReadings)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(sensorReadings.id))
+      .limit(limit)
 
-        if (Number.isNaN(timestamp)) {
-          return false
-        }
-
-        if (from && timestamp < from.getTime()) {
-          return false
-        }
-
-        if (to && timestamp > to.getTime()) {
-          return false
-        }
-
-        return true
-      })
-      .sort((left, right) => {
-        const leftTime = new Date(left.timestamp).getTime()
-        const rightTime = new Date(right.timestamp).getTime()
-        return rightTime - leftTime
-      })
-      .slice(0, limit)
+    return rows.map(toReadingPayload)
   }
 
   return {

@@ -1,3 +1,4 @@
+import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { alertLogs } from './schema.js'
 
 const toAlertPayload = (row) => ({
@@ -12,27 +13,8 @@ const toAlertPayload = (row) => ({
   zone: row.zone ?? null
 })
 
-const sortNewestFirst = (left, right) => {
-  const leftTime = new Date(left.timestamp).getTime()
-  const rightTime = new Date(right.timestamp).getTime()
-
-  if (leftTime !== rightTime) {
-    return rightTime - leftTime
-  }
-
-  return (right.id ?? 0) - (left.id ?? 0)
-}
-
 export const createAlertStore = (database) => {
   const memoryLogs = []
-
-  const getRows = async () => {
-    if (database?.select) {
-      return database.select().from(alertLogs)
-    }
-
-    return memoryLogs
-  }
 
   const logAlert = async (alert) => {
     const row = {
@@ -57,8 +39,33 @@ export const createAlertStore = (database) => {
   }
 
   const listAlerts = async ({ from, to, level, zone, limit = 50 } = {}) => {
-    const rows = await getRows()
-    const filtered = rows
+    if (database?.select) {
+      const conditions = []
+      if (from) {
+        conditions.push(gte(alertLogs.timestamp, from.toISOString()))
+      }
+      if (to) {
+        conditions.push(lte(alertLogs.timestamp, to.toISOString()))
+      }
+      if (level) {
+        conditions.push(eq(alertLogs.alertLevel, level))
+      }
+      if (zone) {
+        conditions.push(eq(alertLogs.zone, zone))
+      }
+
+      const rows = await database
+        .select()
+        .from(alertLogs)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(alertLogs.id))
+        .limit(limit)
+
+      return rows.map(toAlertPayload)
+    }
+
+    // In-memory fallback for tests
+    return memoryLogs
       .map(toAlertPayload)
       .filter((row) => {
         const timestamp = new Date(row.timestamp).getTime()
@@ -84,9 +91,8 @@ export const createAlertStore = (database) => {
 
         return true
       })
-      .sort(sortNewestFirst)
-
-    return filtered.slice(0, limit)
+      .sort((left, right) => (right.id ?? 0) - (left.id ?? 0))
+      .slice(0, limit)
   }
 
   return {

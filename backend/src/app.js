@@ -6,8 +6,8 @@ import { createAlertStore } from './alerts-store.js'
 import { registerSensorRoutes } from './routes/sensor.js'
 import { createSensorStore } from './sensor-store.js'
 
-export const createApp = ({ sensorStore, db: database } = {}) => {
-  const alerts = createAlertStore(database)
+export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
+  const alerts = alertStore ?? createAlertStore(database)
   const store =
     sensorStore ?? createSensorStore(database, { alertStore: alerts })
   const app = new OpenAPIHono({

@@ -38,7 +38,9 @@ const EMPTY_READING = {
 }
 
 const DEFAULT_ALERT_LIMIT = 50
+const MAX_ALERT_LIMIT = 500
 const DEFAULT_SENSOR_LOG_LIMIT = 100
+const MAX_SENSOR_LOG_LIMIT = 500
 
 const parseCalendarDate = (value, { endOfDay = false } = {}) => {
   if (!value || typeof value !== 'string') {
@@ -94,7 +96,7 @@ const parseAlertsQuery = (query) => {
     return { error: 'Invalid limit' }
   }
 
-  const limit = Math.min(limitValue, DEFAULT_ALERT_LIMIT)
+  const limit = Math.min(limitValue, MAX_ALERT_LIMIT)
   const from = query.from
     ? parseCalendarDate(query.from, { endOfDay: false })
     : null
@@ -141,7 +143,7 @@ const parseSensorLogsQuery = (query) => {
   }
 
   return {
-    limit: Math.min(limitValue, DEFAULT_SENSOR_LOG_LIMIT),
+    limit: Math.min(limitValue, MAX_SENSOR_LOG_LIMIT),
     from,
     to
   }
@@ -279,7 +281,42 @@ const sensorLogsRoute = createRoute({
   }
 })
 
+const alertLogsRoute = createRoute({
+  method: 'get',
+  path: '/api/logs/alerts',
+  tags: ['Alerts'],
+  summary: 'Get recorded alert logs (alias)',
+  description:
+    'Alias for /api/alerts. Returns newest-first alert log rows. Supports optional date, level, zone, and limit filters.',
+  operationId: 'getAlertLogs',
+  request: {
+    query: AlertsQuerySchema
+  },
+  responses: {
+    200: {
+      description: 'Alert logs retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(AlertLogSchema)
+        }
+      }
+    },
+    400: badRequestResponse
+  }
+})
+
 export const registerSensorRoutes = (app, sensorStore, alertStore) => {
+  const handleAlertsRequest = async (c, query = {}) => {
+    const parsed = parseAlertsQuery(query)
+
+    if (parsed.error) {
+      return c.json({ error: parsed.error }, 400)
+    }
+
+    const alerts = await alertStore.listAlerts(parsed)
+    return c.json(alerts, 200)
+  }
+
   app.openapi(sensorDataRoute, async (c) => {
     const { humidity, lat, lng, temperature, zone } = c.req.valid('json')
     await sensorStore.save(temperature, 'sensor', humidity ?? null, {
@@ -321,22 +358,11 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
     return c.json(readings, 200)
   })
 
-  const handleAlertsRequest = async (c, query = {}) => {
-    const parsed = parseAlertsQuery(query)
-
-    if (parsed.error) {
-      return c.json({ error: parsed.error }, 400)
-    }
-
-    const alerts = await alertStore.listAlerts(parsed)
-    return c.json(alerts, 200)
-  }
-
   app.openapi(alertsRoute, async (c) =>
     handleAlertsRequest(c, c.req.valid('query'))
   )
-  app.get('/api/logs/alerts', async (c) => {
-    const query = Object.fromEntries(new URL(c.req.url).searchParams.entries())
-    return handleAlertsRequest(c, query)
-  })
+
+  app.openapi(alertLogsRoute, async (c) =>
+    handleAlertsRequest(c, c.req.valid('query'))
+  )
 }
