@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createApp } from '../../src/app.js'
+import { alertLogs } from '../../src/schema.js'
 import { createMockStore } from '../helpers/mock-sensor-store.js'
+import { createTestDatabase } from '../helpers/test-database.js'
 
 describe('Sensor Routes', () => {
   describe('POST /api/sensor-data', () => {
@@ -209,6 +211,205 @@ describe('Sensor Routes', () => {
       })
 
       expect(res.status).toBe(400)
+    })
+  })
+
+  describe('GET /api/logs/sensor', () => {
+    it('returns newest-first sensor reading rows', async () => {
+      const db = createTestDatabase()
+      await db.rows.push({
+        id: 1,
+        createdAt: '2026-05-29T08:00:00.000Z',
+        temperature: 25,
+        humidity: null,
+        humidex: null,
+        source: 'sensor'
+      })
+      await db.rows.push({
+        id: 2,
+        createdAt: '2026-05-29T09:00:00.000Z',
+        temperature: 31,
+        humidity: 50,
+        humidex: 37.6,
+        source: 'sensor'
+      })
+
+      const app = createApp({ db })
+      const res = await app.request('/api/logs/sensor?limit=100')
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toHaveLength(2)
+      expect(body[0]).toMatchObject({
+        temperature: 31,
+        humidex: 37.6,
+        timestamp: '2026-05-29T09:00:00.000Z'
+      })
+    })
+
+    it('accepts ISO datetime date filters from existing frontend inputs', async () => {
+      const db = createTestDatabase()
+      await db.rows.push({
+        id: 1,
+        createdAt: '2026-05-29T08:00:00.000Z',
+        temperature: 25,
+        humidity: null,
+        humidex: null,
+        source: 'sensor'
+      })
+
+      const app = createApp({ db })
+      const res = await app.request(
+        '/api/logs/sensor?from=2026-05-29T00:00:00.000Z&to=2026-05-29T23:59:59.999Z'
+      )
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toHaveLength(1)
+    })
+
+    it('returns 400 for incomplete dates', async () => {
+      const app = createApp({ db: createTestDatabase() })
+
+      const res = await app.request('/api/logs/sensor?from=2026-05')
+
+      expect(res.status).toBe(400)
+    })
+  })
+
+  describe('GET /api/alerts', () => {
+    it('returns newest-first alert rows with a 24-hour default window', async () => {
+      vi.useFakeTimers()
+      try {
+        const now = new Date('2026-05-29T12:00:00.000Z')
+        vi.setSystemTime(now)
+
+        const db = createTestDatabase()
+        await db.insert(alertLogs).values({
+          timestamp: '2026-05-27T10:00:00.000Z',
+          temperature: 31,
+          humidex: 37.6,
+          humidity: 50,
+          alertLevel: 'caution',
+          zone: 'old-zone'
+        })
+        await db.insert(alertLogs).values({
+          timestamp: '2026-05-29T11:00:00.000Z',
+          temperature: 41,
+          humidex: 46.1,
+          humidity: 68,
+          alertLevel: 'danger',
+          zone: 'recent-zone'
+        })
+
+        const app = createApp({ db })
+        const res = await app.request('/api/alerts')
+
+        expect(res.status).toBe(200)
+        const body = await res.json()
+        expect(body).toHaveLength(1)
+        expect(body[0].zone).toBe('recent-zone')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('accepts DD-MM-YYYY and DD/MM/YYYY date filters', async () => {
+      const db = createTestDatabase()
+      await db.insert(alertLogs).values({
+        timestamp: '2026-05-29T09:00:00.000Z',
+        temperature: 41,
+        humidex: 46.1,
+        humidity: 68,
+        alertLevel: 'danger',
+        zone: 'zone-a'
+      })
+
+      const app = createApp({ db })
+      const res = await app.request('/api/alerts?from=29-05-2026&to=29/05/2026')
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toHaveLength(1)
+      expect(body[0].alertLevel).toBe('danger')
+    })
+
+    it('returns 400 for incomplete or invalid dates', async () => {
+      const app = createApp({ db: createTestDatabase() })
+
+      const res = await app.request('/api/alerts?from=2026-05')
+
+      expect(res.status).toBe(400)
+    })
+
+    it('accepts ISO datetime filters while still requiring day-month-year', async () => {
+      const db = createTestDatabase()
+      await db.insert(alertLogs).values({
+        timestamp: '2026-05-29T09:00:00.000Z',
+        temperature: 41,
+        humidex: 46.1,
+        humidity: 68,
+        alertLevel: 'danger',
+        zone: 'zone-a'
+      })
+
+      const app = createApp({ db })
+      const res = await app.request(
+        '/api/alerts?from=2026-05-29T00:00:00.000Z&to=2026-05-29T23:59:59.999Z'
+      )
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toHaveLength(1)
+    })
+
+    it('respects limit, level, and zone filters', async () => {
+      const db = createTestDatabase()
+      await db.insert(alertLogs).values({
+        timestamp: '2026-05-29T08:00:00.000Z',
+        temperature: 41,
+        humidex: 46.1,
+        humidity: 68,
+        alertLevel: 'danger',
+        zone: 'zone-a'
+      })
+      await db.insert(alertLogs).values({
+        timestamp: '2026-05-29T09:00:00.000Z',
+        temperature: 47,
+        humidex: 50.0,
+        humidity: 60,
+        alertLevel: 'extreme',
+        zone: 'zone-a'
+      })
+
+      const app = createApp({ db })
+      const res = await app.request(
+        '/api/alerts?limit=100&level=extreme&zone=zone-a'
+      )
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toHaveLength(1)
+      expect(body[0].alertLevel).toBe('extreme')
+    })
+
+    it('aliases /api/logs/alerts', async () => {
+      const db = createTestDatabase()
+      await db.insert(alertLogs).values({
+        timestamp: '2026-05-29T09:00:00.000Z',
+        temperature: 47,
+        humidex: 50.0,
+        humidity: 60,
+        alertLevel: 'extreme',
+        zone: 'zone-a'
+      })
+
+      const app = createApp({ db })
+      const res = await app.request('/api/logs/alerts')
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toHaveLength(1)
     })
   })
 })

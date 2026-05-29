@@ -2,11 +2,14 @@ import { swaggerUI } from '@hono/swagger-ui'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { createAlertStore } from './alerts-store.js'
 import { registerSensorRoutes } from './routes/sensor.js'
 import { createSensorStore } from './sensor-store.js'
 
-export const createApp = ({ sensorStore, db: database } = {}) => {
-  const store = sensorStore ?? createSensorStore(database)
+export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
+  const alerts = alertStore ?? createAlertStore(database)
+  const store =
+    sensorStore ?? createSensorStore(database, { alertStore: alerts })
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
       if (!result.success) {
@@ -24,7 +27,7 @@ export const createApp = ({ sensorStore, db: database } = {}) => {
   app.get('/', healthHandler)
   app.get('/health', healthHandler)
 
-  registerSensorRoutes(app, store)
+  registerSensorRoutes(app, store, alerts)
 
   app.doc31('/openapi.json', {
     openapi: '3.1.0',
@@ -45,7 +48,10 @@ export const createApp = ({ sensorStore, db: database } = {}) => {
     servers: [
       { url: 'http://localhost:8000', description: 'Local development server' }
     ],
-    tags: [{ name: 'Sensor Data', description: 'Temperature sensor endpoints' }]
+    tags: [
+      { name: 'Sensor Data', description: 'Temperature sensor endpoints' },
+      { name: 'Alerts', description: 'Alert history endpoints' }
+    ]
   })
 
   app.get(

@@ -34,6 +34,23 @@ describe('Database initialization', () => {
     )
   })
 
+  it('creates the alert_logs table and humidex column', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({}),
+      end: vi.fn().mockResolvedValue()
+    }
+    const instance = createDatabase({ pool })
+
+    await instance.initializeDatabase()
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE IF NOT EXISTS alert_logs')
+    )
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE sensor_readings ADD COLUMN IF NOT EXISTS humidex REAL')
+    )
+  })
+
   it('closes the PostgreSQL pool', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({}),
