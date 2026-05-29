@@ -5,12 +5,12 @@ import { createMockStore } from '../helpers/mock-sensor-store.js'
 import { createTestDatabase } from '../helpers/test-database.js'
 
 describe('Sensor Routes', () => {
-  describe('POST /api/sensor-data', () => {
+  describe('POST /api/sensors', () => {
     it('returns 200 with status ok for valid temperature', async () => {
       const store = createMockStore()
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ temperature: 25.5 })
@@ -25,7 +25,7 @@ describe('Sensor Routes', () => {
       const store = createMockStore()
       const app = createApp({ sensorStore: store })
 
-      await app.request('/api/sensor-data', {
+      await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ temperature: 30.0 })
@@ -40,7 +40,7 @@ describe('Sensor Routes', () => {
       const store = createMockStore()
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ temperature: 32.5, humidity: 68.0 })
@@ -58,7 +58,7 @@ describe('Sensor Routes', () => {
       const store = createMockStore()
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -71,7 +71,7 @@ describe('Sensor Routes', () => {
       const store = createMockStore()
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ temperature: 'hot' })
@@ -81,12 +81,12 @@ describe('Sensor Routes', () => {
     })
   })
 
-  describe('GET /api/sensor-latest', () => {
+  describe('GET /api/sensors', () => {
     it('returns empty reading when no data exists', async () => {
       const store = createMockStore()
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-latest')
+      const res = await app.request('/api/sensors')
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -105,7 +105,7 @@ describe('Sensor Routes', () => {
       store.save(37.5, 'sensor')
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-latest')
+      const res = await app.request('/api/sensors')
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -121,7 +121,7 @@ describe('Sensor Routes', () => {
       store.save(32.5, 'sensor', 68.0)
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-latest')
+      const res = await app.request('/api/sensors')
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -139,7 +139,7 @@ describe('Sensor Routes', () => {
       store.save(22.0, 'sensor')
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-latest')
+      const res = await app.request('/api/sensors')
       const body = await res.json()
 
       expect(body.alert.level).toBe('safe')
@@ -150,72 +150,13 @@ describe('Sensor Routes', () => {
       store.save(25.0, 'sensor')
       const app = createApp({ sensorStore: store })
 
-      const res = await app.request('/api/sensor-latest')
+      const res = await app.request('/api/sensors')
       const body = await res.json()
 
       expect(typeof body.timestamp).toBe('string')
     })
-  })
 
-  describe('POST /api/sensor-override', () => {
-    it('returns 200 with overridden status', async () => {
-      const store = createMockStore()
-      const app = createApp({ sensorStore: store })
-
-      const res = await app.request('/api/sensor-override', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ temperature: 31.0 })
-      })
-
-      expect(res.status).toBe(200)
-      const body = await res.json()
-      expect(body).toEqual({ status: 'overridden', temperature: 31.0 })
-    })
-
-    it('saves the reading with source "override"', async () => {
-      const store = createMockStore()
-      const app = createApp({ sensorStore: store })
-
-      await app.request('/api/sensor-override', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ temperature: 42.0 })
-      })
-
-      expect(store.getLatest().source).toBe('override')
-      expect(store.getLatest().temperature).toBe(42.0)
-    })
-
-    it('returns 400 when temperature is missing', async () => {
-      const store = createMockStore()
-      const app = createApp({ sensorStore: store })
-
-      const res = await app.request('/api/sensor-override', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      })
-
-      expect(res.status).toBe(400)
-    })
-
-    it('returns 400 when temperature is not a number', async () => {
-      const store = createMockStore()
-      const app = createApp({ sensorStore: store })
-
-      const res = await app.request('/api/sensor-override', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ temperature: [1, 2] })
-      })
-
-      expect(res.status).toBe(400)
-    })
-  })
-
-  describe('GET /api/logs/sensor', () => {
-    it('returns newest-first sensor reading rows', async () => {
+    it('returns newest-first readings when limit is provided', async () => {
       const db = createTestDatabase()
       await db.rows.push({
         id: 1,
@@ -235,7 +176,7 @@ describe('Sensor Routes', () => {
       })
 
       const app = createApp({ db })
-      const res = await app.request('/api/logs/sensor?limit=100')
+      const res = await app.request('/api/sensors?limit=100')
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -243,11 +184,14 @@ describe('Sensor Routes', () => {
       expect(body[0]).toMatchObject({
         temperature: 31,
         humidex: 37.6,
-        timestamp: '2026-05-29T09:00:00.000Z'
+        timestamp: '2026-05-29T09:00:00.000Z',
+        alert: {
+          level: 'caution'
+        }
       })
     })
 
-    it('accepts ISO datetime date filters from existing frontend inputs', async () => {
+    it('accepts ISO datetime date filters when listing readings', async () => {
       const db = createTestDatabase()
       await db.rows.push({
         id: 1,
@@ -257,10 +201,9 @@ describe('Sensor Routes', () => {
         humidex: null,
         source: 'sensor'
       })
-
       const app = createApp({ db })
       const res = await app.request(
-        '/api/logs/sensor?from=2026-05-29T00:00:00.000Z&to=2026-05-29T23:59:59.999Z'
+        '/api/sensors?from=2026-05-29T00:00:00.000Z&to=2026-05-29T23:59:59.999Z'
       )
 
       expect(res.status).toBe(200)
@@ -271,9 +214,25 @@ describe('Sensor Routes', () => {
     it('returns 400 for incomplete dates', async () => {
       const app = createApp({ db: createTestDatabase() })
 
-      const res = await app.request('/api/logs/sensor?from=2026-05')
+      const res = await app.request('/api/sensors?from=2026-05')
 
       expect(res.status).toBe(400)
+    })
+
+    it('does not expose the old sensor latest, logs, or override endpoints', async () => {
+      const app = createApp({ db: createTestDatabase() })
+
+      expect((await app.request('/api/sensor-latest')).status).toBe(404)
+      expect((await app.request('/api/logs/sensor')).status).toBe(404)
+      expect(
+        (
+          await app.request('/api/sensor-override', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ temperature: 31.0 })
+          })
+        ).status
+      ).toBe(404)
     })
   })
 

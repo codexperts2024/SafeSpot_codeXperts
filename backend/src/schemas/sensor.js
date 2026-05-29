@@ -41,9 +41,8 @@ const SensorReadingSchema = z
       description: 'ISO 8601 timestamp when reading was recorded',
       example: '2026-05-26T14:30:00.000Z'
     }),
-    source: z.enum(['sensor', 'override']).openapi({
-      description:
-        'Whether the reading came from the Raspberry Pi or a manual override',
+    source: z.enum(['sensor']).openapi({
+      description: 'Reading source. Sensor API writes use the Raspberry Pi sensor.',
       example: 'sensor'
     }),
     alert: AlertLevelSchema
@@ -76,7 +75,7 @@ const EmptySensorReadingSchema = z
     humidex: z.nullable(z.number()).openapi({ example: null }),
     timestamp: z.nullable(z.string()).openapi({ example: null }),
     source: z
-      .nullable(z.enum(['sensor', 'override']))
+      .nullable(z.enum(['sensor']))
       .openapi({ example: null }),
     alert: z.nullable(AlertLevelSchema).openapi({ example: null })
   })
@@ -107,11 +106,6 @@ const StatusOkSchema = z.object({
   status: z.literal('ok')
 })
 
-const OverrideResponseSchema = z.object({
-  status: z.literal('overridden'),
-  temperature: z.number().openapi({ example: 31.0 })
-})
-
 const AlertsQuerySchema = z.object({
   limit: z.string().optional(),
   from: z.string().optional(),
@@ -120,7 +114,7 @@ const AlertsQuerySchema = z.object({
   zone: z.string().optional()
 })
 
-const SensorLogsQuerySchema = z.object({
+const SensorReadingsQuerySchema = z.object({
   limit: z.string().optional(),
   from: z.string().optional(),
   to: z.string().optional()
@@ -132,8 +126,7 @@ export {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  OverrideResponseSchema,
-  SensorLogsQuerySchema,
+  SensorReadingsQuerySchema,
   SensorReadingSchema,
   StatusOkSchema,
   TemperatureBodySchema

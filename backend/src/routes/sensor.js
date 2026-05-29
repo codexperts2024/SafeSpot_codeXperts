@@ -7,8 +7,7 @@ import {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  OverrideResponseSchema,
-  SensorLogsQuerySchema,
+  SensorReadingsQuerySchema,
   SensorReadingSchema,
   StatusOkSchema,
   TemperatureBodySchema
@@ -39,8 +38,8 @@ const EMPTY_READING = {
 
 const DEFAULT_ALERT_LIMIT = 50
 const MAX_ALERT_LIMIT = 500
-const DEFAULT_SENSOR_LOG_LIMIT = 100
-const MAX_SENSOR_LOG_LIMIT = 500
+const DEFAULT_SENSOR_READING_LIMIT = 100
+const MAX_SENSOR_READING_LIMIT = 500
 
 const parseCalendarDate = (value, { endOfDay = false } = {}) => {
   if (!value || typeof value !== 'string') {
@@ -122,10 +121,10 @@ const parseAlertsQuery = (query) => {
   }
 }
 
-const parseSensorLogsQuery = (query) => {
+const parseSensorReadingsQuery = (query) => {
   const limitValue = query.limit
     ? Number.parseInt(query.limit, 10)
-    : DEFAULT_SENSOR_LOG_LIMIT
+    : DEFAULT_SENSOR_READING_LIMIT
 
   if (Number.isNaN(limitValue) || limitValue <= 0) {
     return { error: 'Invalid limit' }
@@ -143,7 +142,7 @@ const parseSensorLogsQuery = (query) => {
   }
 
   return {
-    limit: Math.min(limitValue, MAX_SENSOR_LOG_LIMIT),
+    limit: Math.min(limitValue, MAX_SENSOR_READING_LIMIT),
     from,
     to
   }
@@ -162,9 +161,9 @@ const badRequestResponse = {
   }
 }
 
-const sensorDataRoute = createRoute({
+const sensorDataPostRoute = createRoute({
   method: 'post',
-  path: '/api/sensor-data',
+  path: '/api/sensors',
   tags: ['Sensor Data'],
   summary: 'Receive temperature from Raspberry Pi',
   description:
@@ -186,47 +185,30 @@ const sensorDataRoute = createRoute({
   }
 })
 
-const sensorLatestRoute = createRoute({
+const sensorDataGetRoute = createRoute({
   method: 'get',
-  path: '/api/sensor-latest',
+  path: '/api/sensors',
   tags: ['Sensor Data'],
-  summary: 'Get the latest temperature reading',
+  summary: 'Get sensor readings',
   description:
-    'Returns the most recent temperature reading from PostgreSQL with' +
-    ' its alert level, timestamp, and source. Used by the frontend' +
-    ' to display live data on the dashboard.',
-  operationId: 'getSensorLatest',
-  responses: {
-    200: {
-      description: 'Latest reading retrieved successfully',
-      content: {
-        'application/json': {
-          schema: z.union([SensorReadingSchema, EmptySensorReadingSchema])
-        }
-      }
-    }
-  }
-})
-
-const sensorOverrideRoute = createRoute({
-  method: 'post',
-  path: '/api/sensor-override',
-  tags: ['Sensor Data'],
-  summary: 'Manual temperature input for testing',
-  description:
-    'Allows testing without the physical sensor. Simulates a' +
-    ' temperature reading by manually setting a value, useful for' +
-    ' testing alert levels and frontend behavior. Stores the reading' +
-    ' in PostgreSQL with `source: override`.',
-  operationId: 'postSensorOverride',
+    'Returns the most recent temperature reading by default. Provide' +
+    ' a `limit` query parameter to retrieve newest-first historical readings.' +
+    ' Optional `from` and `to` filters are available when listing readings.',
+  operationId: 'getSensorData',
   request: {
-    body: temperatureRequestBody
+    query: SensorReadingsQuerySchema
   },
   responses: {
     200: {
-      description: 'Override applied successfully',
+      description: 'Sensor reading data retrieved successfully',
       content: {
-        'application/json': { schema: OverrideResponseSchema }
+        'application/json': {
+          schema: z.union([
+            SensorReadingSchema,
+            EmptySensorReadingSchema,
+            z.array(SensorReadingSchema)
+          ])
+        }
       }
     },
     400: badRequestResponse
@@ -250,30 +232,6 @@ const alertsRoute = createRoute({
       content: {
         'application/json': {
           schema: z.array(AlertLogSchema)
-        }
-      }
-    },
-    400: badRequestResponse
-  }
-})
-
-const sensorLogsRoute = createRoute({
-  method: 'get',
-  path: '/api/logs/sensor',
-  tags: ['Sensor Data'],
-  summary: 'Get recorded sensor readings',
-  description:
-    'Returns newest-first sensor readings from PostgreSQL. Supports optional date and limit filters.',
-  operationId: 'getSensorLogs',
-  request: {
-    query: SensorLogsQuerySchema
-  },
-  responses: {
-    200: {
-      description: 'Sensor readings retrieved successfully',
-      content: {
-        'application/json': {
-          schema: z.array(SensorReadingSchema.omit({ alert: true }))
         }
       }
     },
@@ -317,7 +275,7 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
     return c.json(alerts, 200)
   }
 
-  app.openapi(sensorDataRoute, async (c) => {
+  app.openapi(sensorDataPostRoute, async (c) => {
     const { humidity, lat, lng, temperature, zone } = c.req.valid('json')
     await sensorStore.save(temperature, 'sensor', humidity ?? null, {
       lat,
@@ -327,7 +285,21 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
     return c.json({ status: 'ok' }, 200)
   })
 
-  app.openapi(sensorLatestRoute, async (c) => {
+  app.openapi(sensorDataGetRoute, async (c) => {
+    const query = c.req.valid('query')
+    const shouldListReadings = Boolean(query.limit || query.from || query.to)
+
+    if (shouldListReadings) {
+      const parsed = parseSensorReadingsQuery(query)
+
+      if (parsed.error) {
+        return c.json({ error: parsed.error }, 400)
+      }
+
+      const readings = await sensorStore.listReadings(parsed)
+      return c.json(readings.map(createReadingPayload), 200)
+    }
+
     const latestReading = await sensorStore.getLatest()
 
     if (!latestReading) {
@@ -335,27 +307,6 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
     }
 
     return c.json(createReadingPayload(latestReading), 200)
-  })
-
-  app.openapi(sensorOverrideRoute, async (c) => {
-    const { humidity, lat, lng, temperature, zone } = c.req.valid('json')
-    await sensorStore.save(temperature, 'override', humidity ?? null, {
-      lat,
-      lng,
-      zone
-    })
-    return c.json({ status: 'overridden', temperature }, 200)
-  })
-
-  app.openapi(sensorLogsRoute, async (c) => {
-    const parsed = parseSensorLogsQuery(c.req.valid('query'))
-
-    if (parsed.error) {
-      return c.json({ error: parsed.error }, 400)
-    }
-
-    const readings = await sensorStore.listReadings(parsed)
-    return c.json(readings, 200)
   })
 
   app.openapi(alertsRoute, async (c) =>

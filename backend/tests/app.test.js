@@ -78,7 +78,7 @@ describe('createApp', () => {
     it('returns 400 with field name for invalid JSON body', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ unknownField: 42 })
@@ -92,7 +92,7 @@ describe('createApp', () => {
     it('returns 400 for malformed (non-parseable) JSON body', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: '{invalid json'

@@ -7,8 +7,7 @@ import {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  OverrideResponseSchema,
-  SensorLogsQuerySchema,
+  SensorReadingsQuerySchema,
   SensorReadingSchema,
   StatusOkSchema,
   TemperatureBodySchema
@@ -128,14 +127,6 @@ describe('SensorReadingSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('accepts override source', () => {
-    const result = SensorReadingSchema.safeParse({
-      ...validReading,
-      source: 'override'
-    })
-    expect(result.success).toBe(true)
-  })
-
   it('rejects invalid source', () => {
     const result = SensorReadingSchema.safeParse({
       ...validReading,
@@ -184,29 +175,6 @@ describe('StatusOkSchema', () => {
   })
 })
 
-describe('OverrideResponseSchema', () => {
-  it('accepts valid override response', () => {
-    const result = OverrideResponseSchema.safeParse({
-      status: 'overridden',
-      temperature: 31.0
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects wrong status', () => {
-    const result = OverrideResponseSchema.safeParse({
-      status: 'ok',
-      temperature: 31.0
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects missing temperature', () => {
-    const result = OverrideResponseSchema.safeParse({ status: 'overridden' })
-    expect(result.success).toBe(false)
-  })
-})
-
 describe('AlertLogSchema', () => {
   it('accepts valid alert log rows', () => {
     const result = AlertLogSchema.safeParse({
@@ -239,9 +207,9 @@ describe('AlertsQuerySchema', () => {
   })
 })
 
-describe('SensorLogsQuerySchema', () => {
+describe('SensorReadingsQuerySchema', () => {
   it('accepts optional sensor log query values', () => {
-    const result = SensorLogsQuerySchema.safeParse({
+    const result = SensorReadingsQuerySchema.safeParse({
       limit: '100',
       from: '2026-05-26',
       to: '26/05/2026'
