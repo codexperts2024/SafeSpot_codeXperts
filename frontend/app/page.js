@@ -514,10 +514,11 @@ export default function Home() {
       const lenisEase = (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t));
 
       function scrollTo(target, offset = 0) {
+        // Always restart Lenis in case it was stopped by the How It Works stick effect
+        window.__lenis?.start();
         if (window.__lenis) {
           window.__lenis.scrollTo(target, { offset, duration: 1.4, easing: lenisEase });
         } else {
-          // fallback
           const y = (typeof target === 'number' ? target : target.getBoundingClientRect().top + window.scrollY) + offset;
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
