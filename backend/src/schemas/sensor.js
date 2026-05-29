@@ -29,6 +29,7 @@ const HumiditySchema = z
 
 const SensorReadingSchema = z
   .object({
+    id: z.number().int().optional(),
     temperature: z
       .number()
       .openapi({ description: 'Temperature in Celsius', example: 37.5 }),
@@ -48,6 +49,25 @@ const SensorReadingSchema = z
     alert: AlertLevelSchema
   })
   .openapi('SensorReading', 'Complete sensor reading with alert metadata')
+
+const AlertLogSchema = z
+  .object({
+    id: z.number().int().openapi({ example: 1 }),
+    timestamp: z.string().openapi({
+      description: 'Timestamp when the alert was recorded',
+      example: '2026-05-26T14:30:00.000Z'
+    }),
+    temperature: z.number().openapi({ example: 37.5 }),
+    humidex: z.nullable(z.number()).openapi({ example: 46.1 }),
+    humidity: z.nullable(HumiditySchema),
+    alertLevel: z.enum(['safe', 'caution', 'danger', 'extreme']).openapi({
+      example: 'danger'
+    }),
+    lat: z.nullable(z.number()).optional(),
+    lng: z.nullable(z.number()).optional(),
+    zone: z.nullable(z.string()).optional()
+  })
+  .openapi('AlertLog', 'Alert log entry from the backend alert history')
 
 const EmptySensorReadingSchema = z
   .object({
@@ -77,7 +97,10 @@ const TemperatureBodySchema = z.object({
   temperature: z
     .number()
     .openapi({ description: 'Temperature in Celsius', example: 37.5 }),
-  humidity: HumiditySchema.optional()
+  humidity: HumiditySchema.optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  zone: z.string().optional()
 })
 
 const StatusOkSchema = z.object({
@@ -89,11 +112,28 @@ const OverrideResponseSchema = z.object({
   temperature: z.number().openapi({ example: 31.0 })
 })
 
+const AlertsQuerySchema = z.object({
+  limit: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  level: z.enum(['safe', 'caution', 'danger', 'extreme']).optional(),
+  zone: z.string().optional()
+})
+
+const SensorLogsQuerySchema = z.object({
+  limit: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional()
+})
+
 export {
   AlertLevelSchema,
+  AlertLogSchema,
+  AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
   OverrideResponseSchema,
+  SensorLogsQuerySchema,
   SensorReadingSchema,
   StatusOkSchema,
   TemperatureBodySchema

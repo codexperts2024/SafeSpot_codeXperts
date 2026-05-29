@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 import '@hono/zod-openapi'
 import {
   AlertLevelSchema,
+  AlertLogSchema,
+  AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
   OverrideResponseSchema,
+  SensorLogsQuerySchema,
   SensorReadingSchema,
   StatusOkSchema,
   TemperatureBodySchema
@@ -201,6 +204,50 @@ describe('OverrideResponseSchema', () => {
   it('rejects missing temperature', () => {
     const result = OverrideResponseSchema.safeParse({ status: 'overridden' })
     expect(result.success).toBe(false)
+  })
+})
+
+describe('AlertLogSchema', () => {
+  it('accepts valid alert log rows', () => {
+    const result = AlertLogSchema.safeParse({
+      id: 1,
+      timestamp: '2026-05-26T14:30:00.000Z',
+      temperature: 41,
+      humidex: 46.1,
+      humidity: 68,
+      alertLevel: 'danger',
+      lat: null,
+      lng: null,
+      zone: 'zone-a'
+    })
+
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('AlertsQuerySchema', () => {
+  it('accepts optional query values', () => {
+    const result = AlertsQuerySchema.safeParse({
+      limit: '50',
+      from: '2026-05-26',
+      to: '26/05/2026',
+      level: 'danger',
+      zone: 'zone-a'
+    })
+
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('SensorLogsQuerySchema', () => {
+  it('accepts optional sensor log query values', () => {
+    const result = SensorLogsQuerySchema.safeParse({
+      limit: '100',
+      from: '2026-05-26',
+      to: '26/05/2026'
+    })
+
+    expect(result.success).toBe(true)
   })
 })
 
