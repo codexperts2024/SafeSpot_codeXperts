@@ -1,9 +1,10 @@
 import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { alertLogs } from './schema.js'
+import { toIsoTimestamp } from './time.js'
 
 const toAlertPayload = (row) => ({
   id: row.id,
-  timestamp: row.timestamp,
+  timestamp: toIsoTimestamp(row.timestamp),
   temperature: row.temperature,
   humidex: row.humidex ?? null,
   humidity: row.humidity ?? null,
@@ -23,7 +24,7 @@ export const createAlertStore = (database) => {
 
   const logAlert = async (alert) => {
     const row = {
-      timestamp: alert.timestamp ?? new Date().toISOString(),
+      timestamp: alert.timestamp ? new Date(alert.timestamp) : new Date(),
       temperature: alert.temperature,
       humidex: alert.humidex ?? null,
       humidity: alert.humidity ?? null,

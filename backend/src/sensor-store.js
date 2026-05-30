@@ -3,6 +3,7 @@ import { getAlertLevel } from './alerts.js'
 import { createAlertStore } from './alerts-store.js'
 import { calculateHumidex } from './humidex.js'
 import { sensorReadings } from './schema.js'
+import { toIsoTimestamp } from './time.js'
 
 const toReadingPayload = (reading) => {
   if (!reading) {
@@ -13,7 +14,7 @@ const toReadingPayload = (reading) => {
     temperature: reading.temperature,
     humidity: reading.humidity ?? null,
     humidex: reading.humidex ?? null,
-    timestamp: reading.createdAt,
+    timestamp: toIsoTimestamp(reading.createdAt),
     source: reading.source
   }
 }
@@ -51,7 +52,7 @@ export const createSensorStore = (database, { alertStore } = {}) => {
   const alerts = alertStore ?? createAlertStore(database)
 
   const save = async (temperature, source, humidity = null, metadata = {}) => {
-    const createdAt = new Date().toISOString()
+    const createdAt = new Date()
     const humidex = calculateHumidex(temperature, humidity)
     const alert = getAlertLevel(humidex ?? temperature)
 
@@ -98,7 +99,7 @@ export const createSensorStore = (database, { alertStore } = {}) => {
       temperature,
       humidity,
       humidex,
-      timestamp: createdAt,
+      timestamp: createdAt.toISOString(),
       source
     }
   }

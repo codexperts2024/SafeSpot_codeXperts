@@ -1,4 +1,4 @@
-import { pgTable, real, serial, text } from 'drizzle-orm/pg-core'
+import { pgTable, real, serial, text, timestamp } from 'drizzle-orm/pg-core'
 
 // These definitions describe query shapes only — they are NOT what creates the
 // tables at runtime. The actual DDL lives in db.js `initializeDatabase`. Keep the
@@ -12,12 +12,12 @@ export const sensorReadings = pgTable('sensor_readings', {
   humidity: real('humidity'),
   humidex: real('humidex'),
   source: text('source').notNull(),
-  createdAt: text('created_at').notNull()
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull()
 })
 
 export const alertLogs = pgTable('alert_logs', {
   id: serial('id').primaryKey(),
-  timestamp: text('timestamp').notNull(),
+  timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
   temperature: real('temperature').notNull(),
   humidex: real('humidex'),
   humidity: real('humidity'),

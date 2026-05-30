@@ -28,14 +28,14 @@ export const createDatabase = ({ env = process.env, pool } = {}) => {
         humidity REAL,
         humidex REAL,
         source TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TIMESTAMPTZ NOT NULL
       )
     `)
 
     await postgresPool.query(`
       CREATE TABLE IF NOT EXISTS alert_logs (
         id SERIAL PRIMARY KEY,
-        timestamp TEXT NOT NULL,
+        timestamp TIMESTAMPTZ NOT NULL,
         temperature REAL NOT NULL,
         humidex REAL,
         humidity REAL,
