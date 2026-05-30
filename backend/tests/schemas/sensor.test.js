@@ -115,7 +115,6 @@ describe('SensorReadingSchema', () => {
     humidity: 68.0,
     humidex: 46.1,
     timestamp: '2026-05-26T14:30:00.000Z',
-    source: 'sensor',
     alert: {
       level: 'danger',
       message: 'Extreme Heat Warning - Find a Cool Space Now'
@@ -125,14 +124,6 @@ describe('SensorReadingSchema', () => {
   it('accepts a valid sensor reading', () => {
     const result = SensorReadingSchema.safeParse(validReading)
     expect(result.success).toBe(true)
-  })
-
-  it('rejects invalid source', () => {
-    const result = SensorReadingSchema.safeParse({
-      ...validReading,
-      source: 'manual'
-    })
-    expect(result.success).toBe(false)
   })
 
   it('rejects missing alert', () => {
@@ -148,7 +139,6 @@ describe('EmptySensorReadingSchema', () => {
     humidity: null,
     humidex: null,
     timestamp: null,
-    source: null,
     alert: null
   }
 

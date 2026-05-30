@@ -21,8 +21,10 @@ const createReadingPayload = (reading) => {
   const humidex = reading.humidex ?? calculatedHumidex ?? reading.temperature
 
   return {
-    ...reading,
+    temperature: reading.temperature,
+    humidity: reading.humidity,
     humidex,
+    timestamp: reading.timestamp,
     alert: getAlertLevel(humidex)
   }
 }
@@ -32,7 +34,6 @@ const EMPTY_READING = {
   humidity: null,
   humidex: null,
   timestamp: null,
-  source: null,
   alert: null
 }
 

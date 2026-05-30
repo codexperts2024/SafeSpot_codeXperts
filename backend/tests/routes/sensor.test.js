@@ -95,7 +95,6 @@ describe('Sensor Routes', () => {
         humidity: null,
         humidex: null,
         timestamp: null,
-        source: null,
         alert: null
       })
     })
@@ -110,7 +109,6 @@ describe('Sensor Routes', () => {
       expect(res.status).toBe(200)
       const body = await res.json()
       expect(body.temperature).toBe(37.5)
-      expect(body.source).toBe('sensor')
       expect(body.humidity).toBeNull()
       expect(body.humidex).toBe(37.5)
       expect(body.alert.level).toBe('caution')
