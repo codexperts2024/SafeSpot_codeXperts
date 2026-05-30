@@ -97,7 +97,8 @@ const TemperatureBodySchema = z.object({
   humidity: HumiditySchema.optional(),
   lat: z.number().optional(),
   lng: z.number().optional(),
-  zone: z.string().optional()
+  zone: z.string().optional(),
+  source: z.string().optional()
 })
 
 const StatusOkSchema = z.object({

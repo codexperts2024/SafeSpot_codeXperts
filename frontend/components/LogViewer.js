@@ -45,9 +45,9 @@ function SensorTab({ from, to }) {
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({ limit: 100 });
-      if (from) params.set("from", new Date(from).toISOString());
-      if (to)   params.set("to",   new Date(to + "T23:59:59").toISOString());
-      const res = await fetch(`${BACKEND_URL}/api/logs/sensor?${params}`);
+      if (from) params.set("from", from);
+      if (to)   params.set("to",   to);
+      const res = await fetch(`${BACKEND_URL}/api/sensors?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRows(Array.isArray(data) ? data : (data.readings ?? data.data ?? []));
@@ -66,7 +66,7 @@ function SensorTab({ from, to }) {
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-white/5">
-            {["Timestamp", "Temperature", "Humidex", "Humidity", "Source"].map(h => (
+            {["Timestamp", "Humidex", "Temperature", "Humidity", "Source"].map(h => (
               <th key={h} className="py-2 pr-4 text-[10px] font-bold text-neutral-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
             ))}
           </tr>
@@ -75,8 +75,8 @@ function SensorTab({ from, to }) {
           {rows.map((r, i) => (
             <tr key={i} className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
               <td className="py-2 pr-4 text-[11px] text-neutral-500 whitespace-nowrap">{formatTs(r.timestamp)}</td>
-              <td className="py-2 pr-4 text-[12px] font-semibold text-orange-400">{r.temperature != null ? `${r.temperature} °C` : "—"}</td>
-              <td className="py-2 pr-4 text-[12px] text-neutral-300">{r.humidex != null ? `${r.humidex} °C` : "—"}</td>
+              <td className="py-2 pr-4 text-[12px] font-semibold text-orange-400">{r.humidex != null ? `${r.humidex} °C` : "—"}</td>
+              <td className="py-2 pr-4 text-[12px] text-neutral-300">{r.temperature != null ? `${r.temperature} °C` : "—"}</td>
               <td className="py-2 pr-4 text-[12px] text-neutral-300">{r.humidity != null ? `${r.humidity}%` : "—"}</td>
               <td className="py-2">
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 border border-white/10 font-medium">{r.source ?? "—"}</span>
@@ -99,8 +99,8 @@ function AlertTab({ from, to }) {
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({ limit: 50 });
-      if (from) params.set("from", new Date(from).toISOString());
-      if (to)   params.set("to",   new Date(to + "T23:59:59").toISOString());
+      if (from) params.set("from", from);
+      if (to)   params.set("to",   to);
       const res = await fetch(`${BACKEND_URL}/api/logs/alerts?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();

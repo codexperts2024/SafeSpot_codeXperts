@@ -173,8 +173,10 @@ export default function Home() {
   const [locationText, setLocationText] = useState('Detect location');
 
   const [sensorTemp, setSensorTemp] = useState(20.0);
+  const [sensorHumidex, setSensorHumidex] = useState(null);
   const [simulatedTemp, setSimulatedTemp] = useState(null);
   const activeTemp = simulatedTemp !== null ? simulatedTemp : sensorTemp;
+  const activeHumidex = simulatedTemp !== null ? simulatedTemp : (sensorHumidex ?? sensorTemp);
   const fetchSensorRef = useRef(null);
   const [weatherTemp, setWeatherTemp] = useState(null);
   const [weatherDesc, setWeatherDesc] = useState(null);
@@ -260,10 +262,11 @@ export default function Home() {
   useEffect(() => {
     async function fetchSensor() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/sensor-latest`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/sensors`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.temperature != null) setSensorTemp(data.temperature);
+        if (data.humidex != null) setSensorHumidex(data.humidex);
       } catch {}
     }
     fetchSensorRef.current = fetchSensor;
@@ -719,6 +722,17 @@ export default function Home() {
     loadShelters();
   }, []);
 
+  const triggerTestTemp = async (temp) => {
+    setSimulatedTemp(temp);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/sensors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ temperature: temp, source: 'test' })
+      });
+    } catch {}
+  };
+
   const requestUserLocation = (forceRefresh) => {
       setLocationText('Locating...');
 
@@ -1129,8 +1143,10 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
-            <button id="view-details-btn" onClick={() => {document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); window.__lenis?.start(); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);}} className="flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-[opacity,color] duration-300 group mt-10 px-4 py-2 rounded-lg opacity-0 pointer-events-none">
+          </div>
+          {/* View Details button — separated below items, absolute on desktop */}
+          <div className="w-full max-w-[1200px] mx-auto px-6 mt-6 md:absolute md:bottom-10 md:left-0 md:right-0">
+            <button id="view-details-btn" onClick={() => {document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); window.__lenis?.start(); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);}} className="flex items-center gap-2 text-[15px] font-medium text-orange-400 hover:text-white transition-[opacity,color] duration-300 group px-4 py-2 rounded-lg opacity-0 pointer-events-none">
               <span>View all details</span> <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
           </div>
@@ -1314,9 +1330,9 @@ export default function Home() {
                        <i data-lucide="cpu" className="w-16 h-16 text-orange-500"></i>
                      </div>
                      <div className="text-[12px] font-medium text-neutral-400 mb-1 flex items-center gap-2">
-                       <i data-lucide="thermometer" className="w-3.5 h-3.5 text-orange-400"></i> Local Sensor
+                       <i data-lucide="thermometer" className="w-3.5 h-3.5 text-orange-400"></i> Local Humidex
                      </div>
-                     <div className="text-3xl font-semibold text-white tracking-tight mt-1">{activeTemp !== null ? activeTemp.toFixed(1) : "--"}<span className="text-lg text-neutral-500 font-normal ml-0.5">°C</span></div>
+                     <div className="text-3xl font-semibold text-white tracking-tight mt-1">{activeHumidex !== null ? activeHumidex.toFixed(1) : "--"}<span className="text-lg text-neutral-500 font-normal ml-0.5">°C</span></div>
                      <div className="mt-4 flex items-center gap-2 text-[12px]">
                        <span className={`px-2 py-0.5 rounded flex items-center gap-1 font-medium ${activeTemp === null || activeTemp >= 40 ? "bg-red-500/20 text-red-400" : activeTemp >= 35 ? "bg-orange-500/20 text-orange-400" : activeTemp >= 30 ? "bg-yellow-500/20 text-yellow-400" : "bg-green-500/20 text-green-400"}`}><i data-lucide={activeTemp === null || activeTemp >= 35 ? "alert-triangle" : "check-circle"} className="w-3 h-3"></i> {getAlertLevel(activeTemp)}</span>
                        <span className="text-neutral-500">Raspberry Pi</span>
@@ -1481,9 +1497,9 @@ export default function Home() {
                 {/* Test Controls Group */}
                 <div className="flex bg-[#111]/85 backdrop-blur-md border border-white/10 rounded-lg p-1 gap-1 shadow-[0_4px_12px_rgba(0,0,0,0.5)] items-center h-[34px]">
                   <div className="px-2 text-[9px] font-bold text-neutral-500 uppercase tracking-widest flex items-center border-r border-white/10 mr-1 h-full">Test</div>
-                  <button type="button" onClick={() => setSimulatedTemp(30)} className="text-[11px] px-2.5 py-1 rounded-md bg-yellow-500/15 hover:bg-yellow-500/30 text-yellow-400 font-medium transition-colors">30°C</button>
-                  <button type="button" onClick={() => setSimulatedTemp(36)} className="text-[11px] px-2.5 py-1 rounded-md bg-orange-500/15 hover:bg-orange-500/30 text-orange-400 font-medium transition-colors">36°C</button>
-                  <button type="button" onClick={() => setSimulatedTemp(41)} className="text-[11px] px-2.5 py-1 rounded-md bg-red-500/15 hover:bg-red-500/30 text-red-400 font-medium transition-colors">41°C</button>
+                  <button type="button" onClick={() => triggerTestTemp(30)} className="text-[11px] px-2.5 py-1 rounded-md bg-yellow-500/15 hover:bg-yellow-500/30 text-yellow-400 font-medium transition-colors">30°C</button>
+                  <button type="button" onClick={() => triggerTestTemp(36)} className="text-[11px] px-2.5 py-1 rounded-md bg-orange-500/15 hover:bg-orange-500/30 text-orange-400 font-medium transition-colors">36°C</button>
+                  <button type="button" onClick={() => triggerTestTemp(41)} className="text-[11px] px-2.5 py-1 rounded-md bg-red-500/15 hover:bg-red-500/30 text-red-400 font-medium transition-colors">41°C</button>
                   <div className="w-px h-3.5 bg-white/10 self-center mx-1"></div>
                   <button type="button" onClick={() => { setSimulatedTemp(null); setSensorTemp(20.0); if (fetchSensorRef.current) fetchSensorRef.current(); }} className="text-[11px] px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/15 text-neutral-300 font-medium transition-colors">Reset</button>
                 </div>
@@ -1624,6 +1640,18 @@ export default function Home() {
                  </>
                ) : <div className="text-[11px] text-neutral-500 mt-0.5">Detect location to calculate</div>}
              </div>
+             {/* Sensor Log button — mobile only */}
+             <button
+               type="button"
+               onClick={() => setLogOpen(true)}
+               className="flex flex-col gap-1 border rounded-xl p-3 cursor-pointer transition-all bg-[#0d1a1f]/40 border-cyan-500/20 hover:border-cyan-400/40 text-left w-full"
+             >
+               <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                 Sensor Log
+               </div>
+               <div className="text-[11px] text-neutral-500">View readings & alerts</div>
+             </button>
            </div>
         </div>
       </section>
