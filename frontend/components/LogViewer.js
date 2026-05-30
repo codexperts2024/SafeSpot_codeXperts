@@ -45,9 +45,9 @@ function SensorTab({ from, to }) {
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({ limit: 100 });
-      if (from) params.set("from", new Date(from).toISOString());
-      if (to)   params.set("to",   new Date(to + "T23:59:59").toISOString());
-      const res = await fetch(`${BACKEND_URL}/api/logs/sensor?${params}`);
+      if (from) params.set("from", from);
+      if (to)   params.set("to",   to);
+      const res = await fetch(`${BACKEND_URL}/api/sensors?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRows(Array.isArray(data) ? data : (data.readings ?? data.data ?? []));
@@ -99,8 +99,8 @@ function AlertTab({ from, to }) {
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({ limit: 50 });
-      if (from) params.set("from", new Date(from).toISOString());
-      if (to)   params.set("to",   new Date(to + "T23:59:59").toISOString());
+      if (from) params.set("from", from);
+      if (to)   params.set("to",   to);
       const res = await fetch(`${BACKEND_URL}/api/logs/alerts?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();

@@ -260,7 +260,7 @@ export default function Home() {
   useEffect(() => {
     async function fetchSensor() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/sensor-latest`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/sensors`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.temperature != null) setSensorTemp(data.temperature);
