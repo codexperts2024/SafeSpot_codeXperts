@@ -54,6 +54,30 @@ describe('Sensor Routes', () => {
       })
     })
 
+    it('persists lat/lng/zone from the POST body into alert logs', async () => {
+      const db = createTestDatabase()
+      const app = createApp({ db })
+
+      await app.request('/api/sensors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          temperature: 41,
+          humidity: 60,
+          lat: 43.7,
+          lng: -79.4,
+          zone: 'downtown'
+        })
+      })
+
+      expect(db.alertRows).toHaveLength(1)
+      expect(db.alertRows[0]).toMatchObject({
+        lat: 43.7,
+        lng: -79.4,
+        zone: 'downtown'
+      })
+    })
+
     it('returns 400 when temperature is missing', async () => {
       const store = createMockStore()
       const app = createApp({ sensorStore: store })
