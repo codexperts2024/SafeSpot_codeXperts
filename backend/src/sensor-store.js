@@ -108,6 +108,7 @@ export const createSensorStore = (database, { alertStore } = {}) => {
     const rows = await database
       .select()
       .from(sensorReadings)
+      .where(eq(sensorReadings.source, 'sensor'))
       .orderBy(desc(sensorReadings.id))
       .limit(1)
 

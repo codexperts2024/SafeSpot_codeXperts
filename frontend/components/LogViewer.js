@@ -36,7 +36,7 @@ function formatTs(iso) {
 }
 
 /** Sensor Readings tab */
-function SensorTab({ from, to }) {
+function SensorTab({ from, to, refreshKey }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -53,7 +53,7 @@ function SensorTab({ from, to }) {
       setRows(Array.isArray(data) ? data : (data.readings ?? data.data ?? []));
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [from, to]);
+  }, [from, to, refreshKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -90,7 +90,7 @@ function SensorTab({ from, to }) {
 }
 
 /** Alert Events tab */
-function AlertTab({ from, to }) {
+function AlertTab({ from, to, refreshKey }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -107,7 +107,7 @@ function AlertTab({ from, to }) {
       setRows(Array.isArray(data) ? data : (data.alerts ?? data.data ?? []));
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [from, to]);
+  }, [from, to, refreshKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -141,7 +141,7 @@ function AlertTab({ from, to }) {
 }
 
 /** Main LogViewer modal */
-export default function LogViewer({ isOpen, onClose }) {
+export default function LogViewer({ isOpen, onClose, refreshKey = 0 }) {
   const [activeTab, setActiveTab] = useState("sensor");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -244,8 +244,8 @@ export default function LogViewer({ isOpen, onClose }) {
         {/* Table */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {activeTab === "sensor"
-            ? <SensorTab from={appliedFrom} to={appliedTo} />
-            : <AlertTab  from={appliedFrom} to={appliedTo} />
+            ? <SensorTab from={appliedFrom} to={appliedTo} refreshKey={refreshKey} />
+            : <AlertTab  from={appliedFrom} to={appliedTo} refreshKey={refreshKey} />
           }
         </div>
 
