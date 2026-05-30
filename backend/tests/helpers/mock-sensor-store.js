@@ -16,6 +16,11 @@ export const createMockStore = () => {
       return reading
     },
     getLatest: () => savedReadings[savedReadings.length - 1] ?? null,
-    listReadings: () => [...savedReadings].reverse()
+    listReadings: ({ limit = 100, from, to } = {}) => {
+      let results = [...savedReadings].reverse()
+      if (from) results = results.filter((r) => r.timestamp >= from.toISOString())
+      if (to) results = results.filter((r) => r.timestamp <= to.toISOString())
+      return results.slice(0, limit)
+    }
   }
 }
