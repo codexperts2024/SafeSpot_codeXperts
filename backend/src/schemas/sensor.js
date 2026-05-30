@@ -1,14 +1,17 @@
 import '@hono/zod-openapi'
 import { z } from 'zod'
+import { ALERT_THRESHOLDS } from '../alerts.js'
+
+const { caution, danger, extreme } = ALERT_THRESHOLDS
 
 const AlertLevelSchema = z
   .object({
     level: z.enum(['safe', 'caution', 'danger', 'extreme']).openapi({
       description:
-        '- **safe**: < 30°C — No alert\n' +
-        '- **caution**: 30–39°C — Mild warning to stay hydrated and cool\n' +
-        '- **danger**: 40–45°C — Extreme heat warning to find a cool space now\n' +
-        '- **extreme**: > 45°C — Urgent alert to seek cooling immediately',
+        `- **safe**: < ${caution}°C — No alert\n` +
+        `- **caution**: ${caution}–${danger - 1}°C — Mild warning to stay hydrated and cool\n` +
+        `- **danger**: ${danger}–${extreme}°C — Extreme heat warning to find a cool space now\n` +
+        `- **extreme**: > ${extreme}°C — Urgent alert to seek cooling immediately`,
       example: 'danger'
     }),
     message: z.string().openapi({
@@ -41,11 +44,6 @@ const SensorReadingSchema = z
       description: 'ISO 8601 timestamp when reading was recorded',
       example: '2026-05-26T14:30:00.000Z'
     }),
-    source: z.enum(['sensor', 'override']).openapi({
-      description:
-        'Whether the reading came from the Raspberry Pi or a manual override',
-      example: 'sensor'
-    }),
     alert: AlertLevelSchema
   })
   .openapi('SensorReading', 'Complete sensor reading with alert metadata')
@@ -75,9 +73,6 @@ const EmptySensorReadingSchema = z
     humidity: z.nullable(z.number()).openapi({ example: null }),
     humidex: z.nullable(z.number()).openapi({ example: null }),
     timestamp: z.nullable(z.string()).openapi({ example: null }),
-    source: z
-      .nullable(z.enum(['sensor', 'override']))
-      .openapi({ example: null }),
     alert: z.nullable(AlertLevelSchema).openapi({ example: null })
   })
   .openapi(
@@ -96,6 +91,8 @@ const ErrorResponseSchema = z
 const TemperatureBodySchema = z.object({
   temperature: z
     .number()
+    .min(-100)
+    .max(100)
     .openapi({ description: 'Temperature in Celsius', example: 37.5 }),
   humidity: HumiditySchema.optional(),
   lat: z.number().optional(),
@@ -107,11 +104,6 @@ const StatusOkSchema = z.object({
   status: z.literal('ok')
 })
 
-const OverrideResponseSchema = z.object({
-  status: z.literal('overridden'),
-  temperature: z.number().openapi({ example: 31.0 })
-})
-
 const AlertsQuerySchema = z.object({
   limit: z.string().optional(),
   from: z.string().optional(),
@@ -120,7 +112,7 @@ const AlertsQuerySchema = z.object({
   zone: z.string().optional()
 })
 
-const SensorLogsQuerySchema = z.object({
+const SensorReadingsQuerySchema = z.object({
   limit: z.string().optional(),
   from: z.string().optional(),
   to: z.string().optional()
@@ -132,9 +124,8 @@ export {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  OverrideResponseSchema,
-  SensorLogsQuerySchema,
   SensorReadingSchema,
+  SensorReadingsQuerySchema,
   StatusOkSchema,
   TemperatureBodySchema
 }

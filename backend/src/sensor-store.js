@@ -1,8 +1,9 @@
-import { and, desc, eq, gte, lte, lt } from 'drizzle-orm'
-import { calculateHumidex } from './humidex.js'
+import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { getAlertLevel } from './alerts.js'
 import { createAlertStore } from './alerts-store.js'
+import { calculateHumidex } from './humidex.js'
 import { sensorReadings } from './schema.js'
+import { toIsoTimestamp } from './time.js'
 
 const toReadingPayload = (reading) => {
   if (!reading) {
@@ -13,7 +14,7 @@ const toReadingPayload = (reading) => {
     temperature: reading.temperature,
     humidity: reading.humidity ?? null,
     humidex: reading.humidex ?? null,
-    timestamp: reading.createdAt,
+    timestamp: toIsoTimestamp(reading.createdAt),
     source: reading.source
   }
 }
@@ -51,7 +52,7 @@ export const createSensorStore = (database, { alertStore } = {}) => {
   const alerts = alertStore ?? createAlertStore(database)
 
   const save = async (temperature, source, humidity = null, metadata = {}) => {
-    const createdAt = new Date().toISOString()
+    const createdAt = new Date()
     const humidex = calculateHumidex(temperature, humidity)
     const alert = getAlertLevel(humidex ?? temperature)
 
@@ -72,15 +73,13 @@ export const createSensorStore = (database, { alertStore } = {}) => {
         : true
 
     if (shouldStore) {
-      await database
-        .insert(sensorReadings)
-        .values({
-          temperature,
-          humidity,
-          humidex,
-          source,
-          createdAt
-        })
+      await database.insert(sensorReadings).values({
+        temperature,
+        humidity,
+        humidex,
+        source,
+        createdAt
+      })
     }
 
     if (alert.level !== 'safe') {
@@ -100,7 +99,7 @@ export const createSensorStore = (database, { alertStore } = {}) => {
       temperature,
       humidity,
       humidex,
-      timestamp: createdAt,
+      timestamp: createdAt.toISOString(),
       source
     }
   }

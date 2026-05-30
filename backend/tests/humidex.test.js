@@ -14,4 +14,10 @@ describe('calculateHumidex', () => {
   it('rounds humidex to one decimal place', () => {
     expect(calculateHumidex(30, 50)).toBe(37.6)
   })
+
+  it('returns null when temperature is not a finite number', () => {
+    expect(calculateHumidex(Number.NaN, 50)).toBeNull()
+    expect(calculateHumidex(undefined, 50)).toBeNull()
+    expect(calculateHumidex(Number.POSITIVE_INFINITY, 50)).toBeNull()
+  })
 })

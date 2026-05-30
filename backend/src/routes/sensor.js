@@ -7,9 +7,8 @@ import {
   AlertsQuerySchema,
   EmptySensorReadingSchema,
   ErrorResponseSchema,
-  OverrideResponseSchema,
-  SensorLogsQuerySchema,
   SensorReadingSchema,
+  SensorReadingsQuerySchema,
   StatusOkSchema,
   TemperatureBodySchema
 } from '../schemas/sensor.js'
@@ -22,8 +21,10 @@ const createReadingPayload = (reading) => {
   const humidex = reading.humidex ?? calculatedHumidex ?? reading.temperature
 
   return {
-    ...reading,
+    temperature: reading.temperature,
+    humidity: reading.humidity,
     humidex,
+    timestamp: reading.timestamp,
     alert: getAlertLevel(humidex)
   }
 }
@@ -33,41 +34,32 @@ const EMPTY_READING = {
   humidity: null,
   humidex: null,
   timestamp: null,
-  source: null,
   alert: null
 }
 
 const DEFAULT_ALERT_LIMIT = 50
 const MAX_ALERT_LIMIT = 500
-const DEFAULT_SENSOR_LOG_LIMIT = 100
-const MAX_SENSOR_LOG_LIMIT = 500
+const DEFAULT_SENSOR_READING_LIMIT = 100
+const MAX_SENSOR_READING_LIMIT = 500
 
 const parseCalendarDate = (value, { endOfDay = false } = {}) => {
   if (!value || typeof value !== 'string') {
     return null
   }
 
-  const trimmed = value.trim()
-  let year
-  let month
-  let day
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
 
-  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
-    const date = new Date(trimmed)
-    return Number.isNaN(date.getTime()) ? null : date
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    ;[year, month, day] = trimmed.split('-').map(Number)
-  } else if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
-    ;[day, month, year] = trimmed.split('-').map(Number)
-  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-    ;[day, month, year] = trimmed.split('/').map(Number)
-  } else {
+  if (!match) {
     return null
   }
 
-  const date = new Date(Date.UTC(year, month - 1, day))
+  const [, yearString, monthString, dayString] = match
+  const year = Number(yearString)
+  const month = Number(monthString)
+  const day = Number(dayString)
+  const date = new Date(
+    Date.UTC(year, month - 1, day, ...(endOfDay ? [23, 59, 59, 999] : []))
+  )
 
   if (
     Number.isNaN(date.getTime()) ||
@@ -78,76 +70,57 @@ const parseCalendarDate = (value, { endOfDay = false } = {}) => {
     return null
   }
 
-  if (endOfDay) {
-    date.setUTCHours(23, 59, 59, 999)
-  } else {
-    date.setUTCHours(0, 0, 0, 0)
-  }
-
   return date
 }
 
-const parseAlertsQuery = (query) => {
+const parseQueryFilters = (query, { defaultLimit, maxLimit }) => {
   const limitValue = query.limit
     ? Number.parseInt(query.limit, 10)
-    : DEFAULT_ALERT_LIMIT
+    : defaultLimit
 
   if (Number.isNaN(limitValue) || limitValue <= 0) {
     return { error: 'Invalid limit' }
   }
 
-  const limit = Math.min(limitValue, MAX_ALERT_LIMIT)
   const from = query.from
     ? parseCalendarDate(query.from, { endOfDay: false })
     : null
-  const to = query.to
-    ? parseCalendarDate(query.to, { endOfDay: true })
-    : null
+  const to = query.to ? parseCalendarDate(query.to, { endOfDay: true }) : null
 
   if ((query.from && !from) || (query.to && !to)) {
     return { error: 'Invalid date value' }
   }
 
-  const now = new Date()
-  const effectiveTo = to ?? now
-  const effectiveFrom =
-    from ?? new Date(effectiveTo.getTime() - 24 * 60 * 60 * 1000)
+  return { limit: Math.min(limitValue, maxLimit), from, to }
+}
+
+const parseAlertsQuery = (query) => {
+  const base = parseQueryFilters(query, {
+    defaultLimit: DEFAULT_ALERT_LIMIT,
+    maxLimit: MAX_ALERT_LIMIT
+  })
+
+  if (base.error) return base
+
+  const noFilters = !base.from && !base.to && !query.level && !query.zone
+  if (noFilters) {
+    const now = new Date()
+    base.to = now
+    base.from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  }
 
   return {
-    limit,
-    from: effectiveFrom,
-    to: effectiveTo,
+    ...base,
     level: query.level,
     zone: query.zone
   }
 }
 
-const parseSensorLogsQuery = (query) => {
-  const limitValue = query.limit
-    ? Number.parseInt(query.limit, 10)
-    : DEFAULT_SENSOR_LOG_LIMIT
-
-  if (Number.isNaN(limitValue) || limitValue <= 0) {
-    return { error: 'Invalid limit' }
-  }
-
-  const from = query.from
-    ? parseCalendarDate(query.from, { endOfDay: false })
-    : null
-  const to = query.to
-    ? parseCalendarDate(query.to, { endOfDay: true })
-    : null
-
-  if ((query.from && !from) || (query.to && !to)) {
-    return { error: 'Invalid date value' }
-  }
-
-  return {
-    limit: Math.min(limitValue, MAX_SENSOR_LOG_LIMIT),
-    from,
-    to
-  }
-}
+const parseSensorReadingsQuery = (query) =>
+  parseQueryFilters(query, {
+    defaultLimit: DEFAULT_SENSOR_READING_LIMIT,
+    maxLimit: MAX_SENSOR_READING_LIMIT
+  })
 
 const temperatureRequestBody = {
   content: {
@@ -162,9 +135,9 @@ const badRequestResponse = {
   }
 }
 
-const sensorDataRoute = createRoute({
+const sensorDataPostRoute = createRoute({
   method: 'post',
-  path: '/api/sensor-data',
+  path: '/api/sensors',
   tags: ['Sensor Data'],
   summary: 'Receive temperature from Raspberry Pi',
   description:
@@ -186,47 +159,30 @@ const sensorDataRoute = createRoute({
   }
 })
 
-const sensorLatestRoute = createRoute({
+const sensorDataGetRoute = createRoute({
   method: 'get',
-  path: '/api/sensor-latest',
+  path: '/api/sensors',
   tags: ['Sensor Data'],
-  summary: 'Get the latest temperature reading',
+  summary: 'Get sensor readings',
   description:
-    'Returns the most recent temperature reading from PostgreSQL with' +
-    ' its alert level, timestamp, and source. Used by the frontend' +
-    ' to display live data on the dashboard.',
-  operationId: 'getSensorLatest',
-  responses: {
-    200: {
-      description: 'Latest reading retrieved successfully',
-      content: {
-        'application/json': {
-          schema: z.union([SensorReadingSchema, EmptySensorReadingSchema])
-        }
-      }
-    }
-  }
-})
-
-const sensorOverrideRoute = createRoute({
-  method: 'post',
-  path: '/api/sensor-override',
-  tags: ['Sensor Data'],
-  summary: 'Manual temperature input for testing',
-  description:
-    'Allows testing without the physical sensor. Simulates a' +
-    ' temperature reading by manually setting a value, useful for' +
-    ' testing alert levels and frontend behavior. Stores the reading' +
-    ' in PostgreSQL with `source: override`.',
-  operationId: 'postSensorOverride',
+    'Returns the most recent temperature reading by default. Provide' +
+    ' a `limit` query parameter to retrieve newest-first historical readings.' +
+    ' Optional `from` and `to` filters are available when listing readings.',
+  operationId: 'getSensorData',
   request: {
-    body: temperatureRequestBody
+    query: SensorReadingsQuerySchema
   },
   responses: {
     200: {
-      description: 'Override applied successfully',
+      description: 'Sensor reading data retrieved successfully',
       content: {
-        'application/json': { schema: OverrideResponseSchema }
+        'application/json': {
+          schema: z.union([
+            SensorReadingSchema,
+            EmptySensorReadingSchema,
+            z.array(SensorReadingSchema)
+          ])
+        }
       }
     },
     400: badRequestResponse
@@ -250,30 +206,6 @@ const alertsRoute = createRoute({
       content: {
         'application/json': {
           schema: z.array(AlertLogSchema)
-        }
-      }
-    },
-    400: badRequestResponse
-  }
-})
-
-const sensorLogsRoute = createRoute({
-  method: 'get',
-  path: '/api/logs/sensor',
-  tags: ['Sensor Data'],
-  summary: 'Get recorded sensor readings',
-  description:
-    'Returns newest-first sensor readings from PostgreSQL. Supports optional date and limit filters.',
-  operationId: 'getSensorLogs',
-  request: {
-    query: SensorLogsQuerySchema
-  },
-  responses: {
-    200: {
-      description: 'Sensor readings retrieved successfully',
-      content: {
-        'application/json': {
-          schema: z.array(SensorReadingSchema.omit({ alert: true }))
         }
       }
     },
@@ -317,7 +249,7 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
     return c.json(alerts, 200)
   }
 
-  app.openapi(sensorDataRoute, async (c) => {
+  app.openapi(sensorDataPostRoute, async (c) => {
     const { humidity, lat, lng, temperature, zone } = c.req.valid('json')
     await sensorStore.save(temperature, 'sensor', humidity ?? null, {
       lat,
@@ -327,7 +259,21 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
     return c.json({ status: 'ok' }, 200)
   })
 
-  app.openapi(sensorLatestRoute, async (c) => {
+  app.openapi(sensorDataGetRoute, async (c) => {
+    const query = c.req.valid('query')
+    const shouldListReadings = Boolean(query.limit || query.from || query.to)
+
+    if (shouldListReadings) {
+      const parsed = parseSensorReadingsQuery(query)
+
+      if (parsed.error) {
+        return c.json({ error: parsed.error }, 400)
+      }
+
+      const readings = await sensorStore.listReadings(parsed)
+      return c.json(readings.map(createReadingPayload), 200)
+    }
+
     const latestReading = await sensorStore.getLatest()
 
     if (!latestReading) {
@@ -335,27 +281,6 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
     }
 
     return c.json(createReadingPayload(latestReading), 200)
-  })
-
-  app.openapi(sensorOverrideRoute, async (c) => {
-    const { humidity, lat, lng, temperature, zone } = c.req.valid('json')
-    await sensorStore.save(temperature, 'override', humidity ?? null, {
-      lat,
-      lng,
-      zone
-    })
-    return c.json({ status: 'overridden', temperature }, 200)
-  })
-
-  app.openapi(sensorLogsRoute, async (c) => {
-    const parsed = parseSensorLogsQuery(c.req.valid('query'))
-
-    if (parsed.error) {
-      return c.json({ error: parsed.error }, 400)
-    }
-
-    const readings = await sensorStore.listReadings(parsed)
-    return c.json(readings, 200)
   })
 
   app.openapi(alertsRoute, async (c) =>

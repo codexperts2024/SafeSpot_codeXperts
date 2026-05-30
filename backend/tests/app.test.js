@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createApp } from '../src/app.js'
 import { createMockStore } from './helpers/mock-sensor-store.js'
 import { createTestDatabase } from './helpers/test-database.js'
@@ -18,13 +18,11 @@ describe('createApp', () => {
   })
 
   describe('GET /', () => {
-    it('returns status ok', async () => {
+    it('returns 404', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
       const res = await app.request('/')
-      expect(res.status).toBe(200)
-      const body = await res.json()
-      expect(body).toEqual({ status: 'ok' })
+      expect(res.status).toBe(404)
     })
   })
 
@@ -53,7 +51,7 @@ describe('createApp', () => {
   })
 
   describe('GET /docs', () => {
-    it('returns the Scalar docs UI page', async () => {
+    it('returns the Swagger UI docs page', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
       const res = await app.request('/docs')
@@ -78,7 +76,7 @@ describe('createApp', () => {
     it('returns 400 with field name for invalid JSON body', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ unknownField: 42 })
@@ -92,13 +90,32 @@ describe('createApp', () => {
     it('returns 400 for malformed (non-parseable) JSON body', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
-      const res = await app.request('/api/sensor-data', {
+      const res = await app.request('/api/sensors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: '{invalid json'
       })
 
       expect(res.status).toBe(400)
+    })
+  })
+
+  describe('POST request logging', () => {
+    it('logs the request body for POST requests', async () => {
+      const app = createApp({ sensorStore: createMockStore() })
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      await app.request('/api/sensors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ temperature: 25.5 })
+      })
+
+      expect(logSpy).toHaveBeenCalledWith('POST request body:', {
+        temperature: 25.5
+      })
+
+      logSpy.mockRestore()
     })
   })
 
