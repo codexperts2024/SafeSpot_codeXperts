@@ -1351,13 +1351,6 @@ export default function Home() {
                        <i data-lucide="map-pin" className="w-3.5 h-3.5 text-blue-400"></i> City Weather
                      </div>
                      <div className="text-3xl font-semibold text-white tracking-tight mt-1">{weatherTemp !== null ? weatherTemp.toFixed(1) : "--"}<span className="text-lg text-neutral-500 font-normal ml-0.5">°C</span></div>
-                     <div className="mt-2 flex items-center gap-1.5 text-[12px]">
-                       {weatherHumidex !== null && (
-                         <span className="px-2 py-0.5 rounded bg-orange-500/15 text-orange-400 font-medium flex items-center gap-1">
-                           <i data-lucide="thermometer" className="w-3 h-3"></i> Humidex {weatherHumidex.toFixed(1)}°C
-                         </span>
-                       )}
-                     </div>
                      <div className="mt-2 flex items-center gap-2 text-[12px]">
                        <span className="text-neutral-300 font-medium" style={{textTransform:"capitalize"}}>{weatherLoc ? weatherLoc : "Toronto"}</span>
                        <span className="text-neutral-600 px-1">•</span>
