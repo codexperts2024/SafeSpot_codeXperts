@@ -8,6 +8,26 @@ import { registerSensorRoutes } from './routes/sensor.js'
 import { createSensorStore } from './sensor-store.js'
 import { StatusOkSchema } from './schemas/sensor.js'
 
+const postBodyLogger = async (c, next) => {
+  if (c.req.method === 'POST') {
+    const contentType = c.req.header('content-type') ?? ''
+    const bodyText = await c.req.raw.clone().text()
+    let body = bodyText
+
+    if (contentType.includes('application/json') && bodyText) {
+      try {
+        body = JSON.parse(bodyText)
+      } catch {
+        body = bodyText
+      }
+    }
+
+    console.log('POST request body:', body)
+  }
+
+  await next()
+}
+
 export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
   const alerts =
     alertStore ?? (database ? createAlertStore(database) : undefined)
@@ -33,6 +53,7 @@ export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
 
   app.use('*', cors())
   app.use('*', logger())
+  app.use('*', postBodyLogger)
 
   const healthRoute = createRoute({
     method: 'get',
