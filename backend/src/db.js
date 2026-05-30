@@ -28,12 +28,6 @@ export const createDatabase = ({ env = process.env, pool } = {}) => {
         created_at TEXT NOT NULL
       )
     `)
-    await postgresPool.query(
-      'ALTER TABLE sensor_readings ADD COLUMN IF NOT EXISTS humidity REAL'
-    )
-    await postgresPool.query(
-      'ALTER TABLE sensor_readings ADD COLUMN IF NOT EXISTS humidex REAL'
-    )
 
     await postgresPool.query(`
       CREATE TABLE IF NOT EXISTS alert_logs (
@@ -48,6 +42,22 @@ export const createDatabase = ({ env = process.env, pool } = {}) => {
         zone TEXT
       )
     `)
+
+    await postgresPool.query(
+      'CREATE INDEX IF NOT EXISTS idx_sensor_readings_source_id ON sensor_readings (source, id DESC)'
+    )
+    await postgresPool.query(
+      'CREATE INDEX IF NOT EXISTS idx_sensor_readings_created_at ON sensor_readings (created_at)'
+    )
+    await postgresPool.query(
+      'CREATE INDEX IF NOT EXISTS idx_alert_logs_timestamp ON alert_logs (timestamp)'
+    )
+    await postgresPool.query(
+      'CREATE INDEX IF NOT EXISTS idx_alert_logs_alert_level ON alert_logs (alert_level)'
+    )
+    await postgresPool.query(
+      'CREATE INDEX IF NOT EXISTS idx_alert_logs_zone ON alert_logs (zone)'
+    )
   }
 
   const close = () => postgresPool.end()

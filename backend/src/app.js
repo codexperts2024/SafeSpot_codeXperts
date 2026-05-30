@@ -1,5 +1,6 @@
 import { swaggerUI } from '@hono/swagger-ui'
 import { OpenAPIHono } from '@hono/zod-openapi'
+import { HTTPException } from 'hono/http-exception'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { createAlertStore } from './alerts-store.js'
@@ -18,6 +19,14 @@ export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
         return c.json({ error: `Missing or invalid field: ${field}` }, 400)
       }
     }
+  })
+
+  app.onError((err, c) => {
+    if (err instanceof HTTPException) {
+      return err.getResponse()
+    }
+    console.error(err)
+    return c.json({ error: 'Internal server error' }, 500)
   })
 
   app.use('*', cors())

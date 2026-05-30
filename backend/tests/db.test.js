@@ -34,7 +34,7 @@ describe('Database initialization', () => {
     )
   })
 
-  it('creates the alert_logs table and humidex column', async () => {
+  it('creates the alert_logs table and indexes', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({}),
       end: vi.fn().mockResolvedValue()
@@ -47,9 +47,10 @@ describe('Database initialization', () => {
       expect.stringContaining('CREATE TABLE IF NOT EXISTS alert_logs')
     )
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'ALTER TABLE sensor_readings ADD COLUMN IF NOT EXISTS humidex REAL'
-      )
+      expect.stringContaining('CREATE INDEX IF NOT EXISTS idx_sensor_readings_source_id')
+    )
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE INDEX IF NOT EXISTS idx_alert_logs_timestamp')
     )
   })
 
