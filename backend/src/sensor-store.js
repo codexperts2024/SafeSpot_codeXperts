@@ -117,10 +117,10 @@ export const createSensorStore = (database, { alertStore } = {}) => {
   const listReadings = async ({ from, to, limit = 100 } = {}) => {
     const conditions = []
     if (from) {
-      conditions.push(gte(sensorReadings.createdAt, from.toISOString()))
+      conditions.push(gte(sensorReadings.createdAt, from))
     }
     if (to) {
-      conditions.push(lte(sensorReadings.createdAt, to.toISOString()))
+      conditions.push(lte(sensorReadings.createdAt, to))
     }
 
     const rows = await database
