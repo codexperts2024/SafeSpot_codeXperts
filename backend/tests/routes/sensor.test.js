@@ -239,6 +239,22 @@ describe('Sensor Routes', () => {
       expect(res.status).toBe(400)
     })
 
+    it('returns 400 for a non-numeric limit', async () => {
+      const app = createApp({ db: createTestDatabase() })
+
+      const res = await app.request('/api/sensors?limit=abc')
+
+      expect(res.status).toBe(400)
+      expect((await res.json()).error).toBe('Invalid limit')
+    })
+
+    it('returns 400 for a zero or negative limit', async () => {
+      const app = createApp({ db: createTestDatabase() })
+
+      expect((await app.request('/api/sensors?limit=0')).status).toBe(400)
+      expect((await app.request('/api/sensors?limit=-5')).status).toBe(400)
+    })
+
     it('does not expose the old sensor latest, logs, or override endpoints', async () => {
       const app = createApp({ db: createTestDatabase() })
 
