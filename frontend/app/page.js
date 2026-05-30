@@ -175,10 +175,12 @@ export default function Home() {
   const [sensorTemp, setSensorTemp] = useState(20.0);
   const [sensorHumidex, setSensorHumidex] = useState(null);
   const [simulatedTemp, setSimulatedTemp] = useState(null);
+  const [logRefreshKey, setLogRefreshKey] = useState(0);
   const activeTemp = simulatedTemp !== null ? simulatedTemp : sensorTemp;
   const activeHumidex = simulatedTemp !== null ? simulatedTemp : (sensorHumidex ?? sensorTemp);
   const fetchSensorRef = useRef(null);
   const [weatherTemp, setWeatherTemp] = useState(null);
+  const [weatherHumidex, setWeatherHumidex] = useState(null);
   const [weatherDesc, setWeatherDesc] = useState(null);
   const [weatherLoc, setWeatherLoc] = useState(null);
   const mapRef = useRef(null);
@@ -286,7 +288,7 @@ export default function Home() {
         const URL = `https://api.openweathermap.org/data/2.5/weather?q=Toronto,CA&appid=${key}&units=metric`;
         const res = await fetch(URL);
         const data = await res.json();
-        if (data.main?.temp != null) { setWeatherTemp(data.main.temp); setWeatherDesc(data.weather?.[0]?.description || ""); setWeatherLoc(data.name || ""); }
+        if (data.main?.temp != null) { setWeatherTemp(data.main.temp); setWeatherHumidex(data.main.feels_like ?? null); setWeatherDesc(data.weather?.[0]?.description || ""); setWeatherLoc(data.name || ""); }
       } catch {}
     }
     fetchWeather();
@@ -730,6 +732,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ temperature: temp, source: 'test' })
       });
+      setLogRefreshKey(k => k + 1);
     } catch {}
   };
 
@@ -1348,7 +1351,14 @@ export default function Home() {
                        <i data-lucide="map-pin" className="w-3.5 h-3.5 text-blue-400"></i> City Weather
                      </div>
                      <div className="text-3xl font-semibold text-white tracking-tight mt-1">{weatherTemp !== null ? weatherTemp.toFixed(1) : "--"}<span className="text-lg text-neutral-500 font-normal ml-0.5">°C</span></div>
-                     <div className="mt-4 flex items-center gap-2 text-[12px]">
+                     <div className="mt-2 flex items-center gap-1.5 text-[12px]">
+                       {weatherHumidex !== null && (
+                         <span className="px-2 py-0.5 rounded bg-orange-500/15 text-orange-400 font-medium flex items-center gap-1">
+                           <i data-lucide="thermometer" className="w-3 h-3"></i> Humidex {weatherHumidex.toFixed(1)}°C
+                         </span>
+                       )}
+                     </div>
+                     <div className="mt-2 flex items-center gap-2 text-[12px]">
                        <span className="text-neutral-300 font-medium" style={{textTransform:"capitalize"}}>{weatherLoc ? weatherLoc : "Toronto"}</span>
                        <span className="text-neutral-600 px-1">•</span>
                        <span className="text-neutral-500" style={{textTransform:"capitalize"}}>{weatherDesc ? weatherDesc : "--"}</span>
@@ -1658,7 +1668,7 @@ export default function Home() {
 
 
       {/* ── Log modal ── */}
-      <LogViewer isOpen={logOpen} onClose={() => setLogOpen(false)} />
+      <LogViewer isOpen={logOpen} onClose={() => setLogOpen(false)} refreshKey={logRefreshKey} />
 
       {/*  GitHub Integration  */}
       <section id="open-source" className="w-full relative py-32 border-b border-white/[0.05] scroll-mt-24 overflow-hidden">
