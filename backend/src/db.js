@@ -17,6 +17,9 @@ export const createDatabase = ({ env = process.env, pool } = {}) => {
   const postgresPool = pool ?? new Pool(createPostgresPoolConfig(env))
   const db = drizzle(postgresPool)
 
+  // Source of truth for the runtime database DDL. The Drizzle definitions in
+  // schema.js describe query shapes only and do not create these tables — keep
+  // the columns/indexes here in lockstep with schema.js.
   const initializeDatabase = async () => {
     await postgresPool.query(`
       CREATE TABLE IF NOT EXISTS sensor_readings (
