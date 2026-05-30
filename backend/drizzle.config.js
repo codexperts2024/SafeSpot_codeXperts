@@ -1,6 +1,4 @@
-import { loadEnvironment } from './src/load-env.js'
-
-loadEnvironment()
+import './src/load-env.js'
 
 export default {
   schema: './src/schema.js',

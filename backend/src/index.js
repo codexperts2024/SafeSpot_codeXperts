@@ -1,9 +1,7 @@
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
 import { createDatabase } from './db.js'
-import { loadEnvironment } from './load-env.js'
-
-loadEnvironment()
+import './load-env.js'
 
 const DEFAULT_PORT = 8000
 const parsedPort = Number.parseInt(process.env.PORT ?? `${DEFAULT_PORT}`, 10)
