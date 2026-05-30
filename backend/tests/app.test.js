@@ -53,7 +53,7 @@ describe('createApp', () => {
   })
 
   describe('GET /docs', () => {
-    it('returns the Scalar docs UI page', async () => {
+    it('returns the Swagger UI docs page', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
       const res = await app.request('/docs')
