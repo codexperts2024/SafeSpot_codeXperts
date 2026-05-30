@@ -9,8 +9,8 @@ const workspaceRoot = path.resolve(backendRoot, '..')
 
 export const loadEnvironment = () => {
   for (const envPath of [
-    path.join(workspaceRoot, '.env'),
-    path.join(backendRoot, '.env')
+    path.join(backendRoot, '.env'),
+    path.join(workspaceRoot, '.env')
   ]) {
     if (existsSync(envPath)) {
       dotenv.config({ path: envPath, override: false, quiet: true })
