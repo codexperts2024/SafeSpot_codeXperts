@@ -73,16 +73,15 @@ const parseCalendarDate = (value, { endOfDay = false } = {}) => {
   return date
 }
 
-const parseAlertsQuery = (query) => {
+const parseQueryFilters = (query, { defaultLimit, maxLimit }) => {
   const limitValue = query.limit
     ? Number.parseInt(query.limit, 10)
-    : DEFAULT_ALERT_LIMIT
+    : defaultLimit
 
   if (Number.isNaN(limitValue) || limitValue <= 0) {
     return { error: 'Invalid limit' }
   }
 
-  const limit = Math.min(limitValue, MAX_ALERT_LIMIT)
   const from = query.from
     ? parseCalendarDate(query.from, { endOfDay: false })
     : null
@@ -92,13 +91,24 @@ const parseAlertsQuery = (query) => {
     return { error: 'Invalid date value' }
   }
 
+  return { limit: Math.min(limitValue, maxLimit), from, to }
+}
+
+const parseAlertsQuery = (query) => {
+  const base = parseQueryFilters(query, {
+    defaultLimit: DEFAULT_ALERT_LIMIT,
+    maxLimit: MAX_ALERT_LIMIT
+  })
+
+  if (base.error) return base
+
   const now = new Date()
-  const effectiveTo = to ?? now
+  const effectiveTo = base.to ?? now
   const effectiveFrom =
-    from ?? new Date(effectiveTo.getTime() - 24 * 60 * 60 * 1000)
+    base.from ?? new Date(effectiveTo.getTime() - 24 * 60 * 60 * 1000)
 
   return {
-    limit,
+    ...base,
     from: effectiveFrom,
     to: effectiveTo,
     level: query.level,
@@ -106,30 +116,11 @@ const parseAlertsQuery = (query) => {
   }
 }
 
-const parseSensorReadingsQuery = (query) => {
-  const limitValue = query.limit
-    ? Number.parseInt(query.limit, 10)
-    : DEFAULT_SENSOR_READING_LIMIT
-
-  if (Number.isNaN(limitValue) || limitValue <= 0) {
-    return { error: 'Invalid limit' }
-  }
-
-  const from = query.from
-    ? parseCalendarDate(query.from, { endOfDay: false })
-    : null
-  const to = query.to ? parseCalendarDate(query.to, { endOfDay: true }) : null
-
-  if ((query.from && !from) || (query.to && !to)) {
-    return { error: 'Invalid date value' }
-  }
-
-  return {
-    limit: Math.min(limitValue, MAX_SENSOR_READING_LIMIT),
-    from,
-    to
-  }
-}
+const parseSensorReadingsQuery = (query) =>
+  parseQueryFilters(query, {
+    defaultLimit: DEFAULT_SENSOR_READING_LIMIT,
+    maxLimit: MAX_SENSOR_READING_LIMIT
+  })
 
 const temperatureRequestBody = {
   content: {
