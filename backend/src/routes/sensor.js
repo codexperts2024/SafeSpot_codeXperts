@@ -102,15 +102,15 @@ const parseAlertsQuery = (query) => {
 
   if (base.error) return base
 
-  const now = new Date()
-  const effectiveTo = base.to ?? now
-  const effectiveFrom =
-    base.from ?? new Date(effectiveTo.getTime() - 24 * 60 * 60 * 1000)
+  const noFilters = !base.from && !base.to && !query.level && !query.zone
+  if (noFilters) {
+    const now = new Date()
+    base.to = now
+    base.from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  }
 
   return {
     ...base,
-    from: effectiveFrom,
-    to: effectiveTo,
     level: query.level,
     zone: query.zone
   }

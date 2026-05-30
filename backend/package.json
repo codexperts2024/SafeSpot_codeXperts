@@ -24,7 +24,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.15",
-		"drizzle-kit": "^0.18.1",
 		"vitest": "^4.1.7"
 	}
 }

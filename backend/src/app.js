@@ -1,11 +1,12 @@
 import { swaggerUI } from '@hono/swagger-ui'
-import { OpenAPIHono } from '@hono/zod-openapi'
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { createAlertStore } from './alerts-store.js'
 import { registerSensorRoutes } from './routes/sensor.js'
 import { createSensorStore } from './sensor-store.js'
+import { StatusOkSchema } from './schemas/sensor.js'
 
 export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
   const alerts =
@@ -33,9 +34,20 @@ export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
   app.use('*', cors())
   app.use('*', logger())
 
-  const healthHandler = (c) => c.json({ status: 'ok' })
-  app.get('/', healthHandler)
-  app.get('/health', healthHandler)
+  const healthRoute = createRoute({
+    method: 'get',
+    path: '/health',
+    tags: ['Health'],
+    summary: 'Health check',
+    responses: {
+      200: {
+        description: 'Service is running',
+        content: { 'application/json': { schema: StatusOkSchema } }
+      }
+    }
+  })
+
+  app.openapi(healthRoute, (c) => c.json({ status: 'ok' }, 200))
 
   registerSensorRoutes(app, store, alerts)
 
@@ -59,6 +71,7 @@ export const createApp = ({ sensorStore, alertStore, db: database } = {}) => {
       { url: 'http://localhost:8000', description: 'Local development server' }
     ],
     tags: [
+      { name: 'Health', description: 'Service health check' },
       { name: 'Sensor Data', description: 'Temperature sensor endpoints' },
       { name: 'Alerts', description: 'Alert history endpoints' }
     ]

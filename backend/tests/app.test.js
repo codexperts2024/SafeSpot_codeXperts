@@ -18,13 +18,11 @@ describe('createApp', () => {
   })
 
   describe('GET /', () => {
-    it('returns status ok', async () => {
+    it('returns 404', async () => {
       const app = createApp({ sensorStore: createMockStore() })
 
       const res = await app.request('/')
-      expect(res.status).toBe(200)
-      const body = await res.json()
-      expect(body).toEqual({ status: 'ok' })
+      expect(res.status).toBe(404)
     })
   })
 

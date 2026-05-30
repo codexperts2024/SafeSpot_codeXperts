@@ -91,6 +91,8 @@ const ErrorResponseSchema = z
 const TemperatureBodySchema = z.object({
   temperature: z
     .number()
+    .min(-100)
+    .max(100)
     .openapi({ description: 'Temperature in Celsius', example: 37.5 }),
   humidity: HumiditySchema.optional(),
   lat: z.number().optional(),
