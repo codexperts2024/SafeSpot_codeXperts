@@ -1,14 +1,17 @@
 import '@hono/zod-openapi'
 import { z } from 'zod'
+import { ALERT_THRESHOLDS } from '../alerts.js'
+
+const { caution, danger, extreme } = ALERT_THRESHOLDS
 
 const AlertLevelSchema = z
   .object({
     level: z.enum(['safe', 'caution', 'danger', 'extreme']).openapi({
       description:
-        '- **safe**: < 30°C — No alert\n' +
-        '- **caution**: 30–39°C — Mild warning to stay hydrated and cool\n' +
-        '- **danger**: 40–45°C — Extreme heat warning to find a cool space now\n' +
-        '- **extreme**: > 45°C — Urgent alert to seek cooling immediately',
+        `- **safe**: < ${caution}°C — No alert\n` +
+        `- **caution**: ${caution}–${danger - 1}°C — Mild warning to stay hydrated and cool\n` +
+        `- **danger**: ${danger}–${extreme}°C — Extreme heat warning to find a cool space now\n` +
+        `- **extreme**: > ${extreme}°C — Urgent alert to seek cooling immediately`,
       example: 'danger'
     }),
     message: z.string().openapi({
