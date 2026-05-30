@@ -1146,7 +1146,7 @@ export default function Home() {
           </div>
           {/* View Details button — separated below items, absolute on desktop */}
           <div className="w-full max-w-[1200px] mx-auto px-6 mt-6 md:absolute md:bottom-10 md:left-0 md:right-0">
-            <button id="view-details-btn" onClick={() => {document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); window.__lenis?.start(); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);}} className="flex items-center gap-2 text-[15px] font-medium text-neutral-400 hover:text-white transition-[opacity,color] duration-300 group px-4 py-2 rounded-lg opacity-0 pointer-events-none">
+            <button id="view-details-btn" onClick={() => {document.getElementById('how-it-works-simple').classList.add('hidden'); document.getElementById('how-it-works-detailed').classList.remove('hidden'); window.__lenis?.start(); setTimeout(() => document.getElementById('how-it-works-detailed').scrollIntoView({ behavior: 'smooth' }), 50);}} className="flex items-center gap-2 text-[15px] font-medium text-orange-400 hover:text-white transition-[opacity,color] duration-300 group px-4 py-2 rounded-lg opacity-0 pointer-events-none">
               <span>View all details</span> <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
           </div>
