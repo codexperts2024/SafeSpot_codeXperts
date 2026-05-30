@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "safespot-toronto-api",
     "name": "SafeSpot Toronto API",
-    "description": "Backend API for SafeSpot Toronto — real-time extreme weather safety app. Hono.js + PostgreSQL sensor readings with alert levels.",
+    "description": "Backend API for SafeSpot Toronto — real-time extreme weather safety app. Hono.js + PostgreSQL sensor readings with alert history, humidex, location metadata, and alert levels.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,6 +13,10 @@
     {
       "key": "protocol",
       "value": "https"
+    },
+    {
+      "key": "local_base_url",
+      "value": "localhost:8000"
     }
   ],
   "item": [
@@ -25,32 +29,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{protocol}}://{{base_url}}/",
-              "protocol": "{{protocol}}",
-              "host": ["{{base_url}}"],
-              "path": [""]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "status": "OK",
-              "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"status\": \"ok\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "Health Alias",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
               "raw": "{{protocol}}://{{base_url}}/health",
               "protocol": "{{protocol}}",
-              "host": ["{{base_url}}"],
-              "path": ["health"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
             }
           },
           "response": [
@@ -58,7 +44,12 @@
               "name": "Success",
               "status": "OK",
               "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"status\": \"ok\"\n}"
             }
           ]
@@ -76,8 +67,12 @@
             "url": {
               "raw": "{{protocol}}://{{base_url}}/openapi.json",
               "protocol": "{{protocol}}",
-              "host": ["{{base_url}}"],
-              "path": ["openapi.json"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "openapi.json"
+              ]
             }
           },
           "response": [
@@ -85,8 +80,13 @@
               "name": "OpenAPI 3.1 Spec",
               "status": "OK",
               "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"openapi\": \"3.1.0\",\n  \"info\": { \"title\": \"SafeSpot API\", \"version\": \"1.0.0\" }\n}"
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"openapi\": \"3.1.0\",\n  \"info\": {\n    \"title\": \"SafeSpot Toronto — Sensor API\",\n    \"version\": \"1.0.0\"\n  }\n}"
             }
           ]
         },
@@ -98,8 +98,12 @@
             "url": {
               "raw": "{{protocol}}://{{base_url}}/docs",
               "protocol": "{{protocol}}",
-              "host": ["{{base_url}}"],
-              "path": ["docs"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "docs"
+              ]
             },
             "description": "Opens the Swagger UI interactive API documentation. Best viewed in a browser."
           }
@@ -107,107 +111,306 @@
       ]
     },
     {
-      "name": "Sensor",
-      "description": "Endpoints for submitting and retrieving temperature sensor data from the Raspberry Pi.",
+      "name": "Sensor Data",
+      "description": "Endpoints for submitting and retrieving temperature sensor readings from the Raspberry Pi. Readings can include optional humidity and location metadata.",
       "item": [
         {
-          "name": "Get Latest Reading",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{protocol}}://{{base_url}}/api/sensor-latest",
-              "protocol": "{{protocol}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "sensor-latest"]
-            }
-          },
-          "response": [
-            {
-              "name": "With Data",
-              "status": "OK",
-              "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"temperature\": 37.5,\n  \"timestamp\": \"2026-05-26T14:30:00.000Z\",\n  \"source\": \"sensor\",\n  \"alert\": {\n    \"level\": \"danger\",\n    \"message\": \"Extreme Heat Warning - Find a Cool Space Now\"\n  }\n}"
-            },
-            {
-              "name": "Empty Database",
-              "status": "OK",
-              "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"temperature\": null,\n  \"timestamp\": null,\n  \"source\": null,\n  \"alert\": null\n}"
-            }
-          ]
-        },
-        {
-          "name": "Submit Sensor Data",
+          "name": "Submit Sensor Reading",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"temperature\": 37.5\n}"
+              "raw": "{\n  \"temperature\": 37.5,\n  \"humidity\": 68,\n  \"lat\": 43.6532,\n  \"lng\": -79.3832,\n  \"zone\": \"downtown\"\n}"
             },
             "url": {
-              "raw": "{{protocol}}://{{base_url}}/api/sensor-data",
+              "raw": "{{protocol}}://{{base_url}}/api/sensors",
               "protocol": "{{protocol}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "sensor-data"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
             },
-            "description": "Receives temperature from the Raspberry Pi sensor. Stores with source: \"sensor\".\n\n**Alert thresholds:**\n- >= 40°C → extreme\n- >= 35°C → danger\n- >= 30°C → caution\n- < 30°C → safe"
+            "description": "Receives a temperature reading from the Raspberry Pi sensor. Stores it with source: \"sensor\", calculates humidex when humidity is provided, evaluates alert level, and records alert history.\n\nRequired body fields:\n- temperature: number between -100 and 100\n\nOptional body fields:\n- humidity: number between 0 and 100\n- lat: number\n- lng: number\n- zone: string"
           },
           "response": [
             {
               "name": "Success",
               "status": "OK",
               "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"status\": \"ok\"\n}"
             },
             {
               "name": "Validation Error",
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"error\": \"Missing or invalid field: temperature\"\n}"
             }
           ]
         },
         {
-          "name": "Override Temperature",
+          "name": "Get Latest Sensor Reading",
           "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"temperature\": 31.0\n}"
-            },
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{protocol}}://{{base_url}}/api/sensor-override",
+              "raw": "{{protocol}}://{{base_url}}/api/sensors",
               "protocol": "{{protocol}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "sensor-override"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
             },
-            "description": "Manually override temperature for testing. Stores with source: \"override\"."
+            "description": "Returns the most recent sensor reading. When no reading has been recorded, nullable empty-state fields are returned."
+          },
+          "response": [
+            {
+              "name": "With Data",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"temperature\": 37.5,\n  \"humidity\": 68,\n  \"humidex\": 46.1,\n  \"timestamp\": \"2026-05-26T14:30:00.000Z\",\n  \"alert\": {\n    \"level\": \"danger\",\n    \"message\": \"Extreme Heat Warning - Find a Cool Space Now\"\n  }\n}"
+            },
+            {
+              "name": "Empty Database",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"temperature\": null,\n  \"humidity\": null,\n  \"humidex\": null,\n  \"timestamp\": null,\n  \"alert\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Sensor Readings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_url}}/api/sensors?limit=25&from=2026-05-26T00:00:00.000Z&to=2026-05-27T00:00:00.000Z",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "25",
+                  "description": "Optional number of newest-first readings to return. Providing limit/from/to switches this endpoint to list mode."
+                },
+                {
+                  "key": "from",
+                  "value": "2026-05-26T00:00:00.000Z",
+                  "description": "Optional ISO 8601 start timestamp."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-05-27T00:00:00.000Z",
+                  "description": "Optional ISO 8601 end timestamp."
+                }
+              ]
+            },
+            "description": "Returns newest-first historical sensor readings when any of limit, from, or to is provided."
           },
           "response": [
             {
               "name": "Success",
               "status": "OK",
               "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"status\": \"overridden\",\n  \"temperature\": 31.0\n}"
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 1,\n    \"temperature\": 37.5,\n    \"humidity\": 68,\n    \"humidex\": 46.1,\n    \"timestamp\": \"2026-05-26T14:30:00.000Z\",\n    \"alert\": {\n      \"level\": \"danger\",\n      \"message\": \"Extreme Heat Warning - Find a Cool Space Now\"\n    }\n  }\n]"
             },
             {
-              "name": "Validation Error",
+              "name": "Invalid Query",
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"error\": \"Missing or invalid field: temperature\"\n}"
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Invalid limit\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "description": "Endpoints for retrieving recorded alert history. Alert records are returned newest-first and support optional date, level, zone, and limit filters.",
+      "item": [
+        {
+          "name": "List Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_url}}/api/alerts?limit=25&level=danger&zone=downtown&from=2026-05-26T00:00:00.000Z&to=2026-05-27T00:00:00.000Z",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "25",
+                  "description": "Optional number of newest-first alerts to return."
+                },
+                {
+                  "key": "level",
+                  "value": "danger",
+                  "description": "Optional alert level: safe, caution, danger, or extreme."
+                },
+                {
+                  "key": "zone",
+                  "value": "downtown",
+                  "description": "Optional zone filter."
+                },
+                {
+                  "key": "from",
+                  "value": "2026-05-26T00:00:00.000Z",
+                  "description": "Optional ISO 8601 start timestamp."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-05-27T00:00:00.000Z",
+                  "description": "Optional ISO 8601 end timestamp."
+                }
+              ]
+            },
+            "description": "Returns alert log rows from PostgreSQL. If no filters are provided, defaults to the last 24 hours."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 1,\n    \"timestamp\": \"2026-05-26T14:30:00.000Z\",\n    \"temperature\": 37.5,\n    \"humidex\": 46.1,\n    \"humidity\": 68,\n    \"alertLevel\": \"danger\",\n    \"lat\": 43.6532,\n    \"lng\": -79.3832,\n    \"zone\": \"downtown\"\n  }\n]"
+            },
+            {
+              "name": "Invalid Query",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Invalid date value\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Alerts Alias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_url}}/api/logs/alerts?limit=25&level=danger&zone=downtown&from=2026-05-26T00:00:00.000Z&to=2026-05-27T00:00:00.000Z",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logs",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "25",
+                  "description": "Optional number of newest-first alerts to return."
+                },
+                {
+                  "key": "level",
+                  "value": "danger",
+                  "description": "Optional alert level: safe, caution, danger, or extreme."
+                },
+                {
+                  "key": "zone",
+                  "value": "downtown",
+                  "description": "Optional zone filter."
+                },
+                {
+                  "key": "from",
+                  "value": "2026-05-26T00:00:00.000Z",
+                  "description": "Optional ISO 8601 start timestamp."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-05-27T00:00:00.000Z",
+                  "description": "Optional ISO 8601 end timestamp."
+                }
+              ]
+            },
+            "description": "Alias for /api/alerts. Returns the same newest-first alert log rows with the same optional filters."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 1,\n    \"timestamp\": \"2026-05-26T14:30:00.000Z\",\n    \"temperature\": 37.5,\n    \"humidex\": 46.1,\n    \"humidity\": 68,\n    \"alertLevel\": \"danger\",\n    \"lat\": 43.6532,\n    \"lng\": -79.3832,\n    \"zone\": \"downtown\"\n  }\n]"
             }
           ]
         }
