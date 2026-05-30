@@ -250,8 +250,8 @@ export const registerSensorRoutes = (app, sensorStore, alertStore) => {
   }
 
   app.openapi(sensorDataPostRoute, async (c) => {
-    const { humidity, lat, lng, temperature, zone } = c.req.valid('json')
-    await sensorStore.save(temperature, 'sensor', humidity ?? null, {
+    const { humidity, lat, lng, temperature, zone, source } = c.req.valid('json')
+    await sensorStore.save(temperature, source ?? 'sensor', humidity ?? null, {
       lat,
       lng,
       zone
