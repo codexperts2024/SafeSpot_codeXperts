@@ -122,6 +122,13 @@ const createQuery = (rows) => {
   return chain
 }
 
+// Normalize values for comparison. Timestamptz columns receive Date objects
+// from the query layer; rows may store ISO strings or Dates. Coerce Dates to
+// ISO strings so date comparisons stay lexicographically correct (matching how
+// Postgres compares timestamps), mirroring real driver behavior.
+const normalizeValue = (value) =>
+  value instanceof Date ? value.toISOString() : String(value)
+
 const applyConditions = (rows, conditions) => {
   if (conditions.length === 0) return rows
 
@@ -131,17 +138,20 @@ const applyConditions = (rows, conditions) => {
       const rowValue = row[resolvedCol]
       if (rowValue === undefined) return true
 
+      const left = normalizeValue(rowValue)
+      const right = normalizeValue(value)
+
       switch (operator) {
         case '=':
-          return String(rowValue) === String(value)
+          return left === right
         case '>=':
-          return String(rowValue) >= String(value)
+          return left >= right
         case '<=':
-          return String(rowValue) <= String(value)
+          return left <= right
         case '>':
-          return String(rowValue) > String(value)
+          return left > right
         case '<':
-          return String(rowValue) < String(value)
+          return left < right
         default:
           return true
       }

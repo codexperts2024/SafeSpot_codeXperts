@@ -41,10 +41,10 @@ export const createAlertStore = (database) => {
   const listAlerts = async ({ from, to, level, zone, limit = 50 } = {}) => {
     const conditions = []
     if (from) {
-      conditions.push(gte(alertLogs.timestamp, from.toISOString()))
+      conditions.push(gte(alertLogs.timestamp, from))
     }
     if (to) {
-      conditions.push(lte(alertLogs.timestamp, to.toISOString()))
+      conditions.push(lte(alertLogs.timestamp, to))
     }
     if (level) {
       conditions.push(eq(alertLogs.alertLevel, level))
